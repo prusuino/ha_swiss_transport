@@ -6,7 +6,8 @@ public opendata.ch transport API. No authentication required.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta, timezone
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -16,11 +17,14 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import (
     API_BASE,
     CONF_LIMIT,
+    CONF_OJP_TOKEN,
     CONF_STATION_ID,
     CONF_TRANSPORTATIONS,
     DEFAULT_LIMIT,
     DOMAIN,
     FETCH_TIMEOUT_SECONDS,
+    OJP_ENDPOINT,
+    OJP_REQUESTOR_REF,
     UPDATE_INTERVAL_SECONDS,
 )
 
@@ -162,6 +166,168 @@ async def async_fetch_stationboard(
     }
 
 
+# --- Optional real-time enrichment via opentransportdata.swiss OJP 2.0 ---
+
+_OJP_NS = {"o": "http://www.vdv.de/ojp", "s": "http://www.siri.org.uk/siri"}
+
+# SIRI occupancy levels mapped to a coarse 1 (low) .. 3 (high) scale that the
+# card can render, tolerant of the various spellings different feeds use.
+_OCCUPANCY_LEVEL = {
+    "manyseatsavailable": 1,
+    "low": 1,
+    "seatsavailable": 1,
+    "fewseatsavailable": 2,
+    "medium": 2,
+    "standingroomonly": 3,
+    "full": 3,
+    "high": 3,
+    "crushedstandingroomonly": 3,
+}
+
+
+def _ojp_iso_to_ts(value) -> int | None:
+    """OJP time ('2026-07-19T21:32:00Z') -> unix seconds."""
+    try:
+        return int(datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp())
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+
+def _build_stop_event_request(station_id: str, limit: int) -> str:
+    """Minimal OJP 2.0 StopEventRequest for one stop, with real-time data."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<OJP xmlns="http://www.vdv.de/ojp" xmlns:siri="http://www.siri.org.uk/siri" version="2.0">'
+        "<OJPRequest><siri:ServiceRequest>"
+        f"<siri:RequestTimestamp>{ts}</siri:RequestTimestamp>"
+        f"<siri:RequestorRef>{OJP_REQUESTOR_REF}</siri:RequestorRef>"
+        "<OJPStopEventRequest>"
+        f"<siri:RequestTimestamp>{ts}</siri:RequestTimestamp>"
+        "<Location><PlaceRef>"
+        f"<siri:StopPointRef>{station_id}</siri:StopPointRef>"
+        "</PlaceRef></Location>"
+        "<Params>"
+        f"<NumberOfResults>{int(limit)}</NumberOfResults>"
+        "<StopEventType>departure</StopEventType>"
+        "<IncludeRealtimeData>true</IncludeRealtimeData>"
+        "</Params>"
+        "</OJPStopEventRequest>"
+        "</siri:ServiceRequest></OJPRequest></OJP>"
+    )
+
+
+def _txt(elem, path: str) -> str | None:
+    node = elem.find(path, _OJP_NS)
+    return node.text if node is not None else None
+
+
+def _parse_ojp_stationboard(xml_text: str) -> dict:
+    """Turn an OJP StopEventResponse into
+    {"events": {timetabled_ts: [event, ...]}, "alerts": [text, ...]}.
+
+    Each event carries the fresher real-time facts we overlay onto the
+    opendata.ch board: estimated time, cancellation, platform change and
+    occupancy. Matching is done on the scheduled (timetabled) departure
+    time, which is identical in both sources."""
+    root = ET.fromstring(xml_text)
+
+    # Station-wide disruption texts, de-duplicated. The human-readable summary
+    # lives at PassengerInformationAction/TextualContent/SummaryContent/
+    # SummaryText — all in the SIRI namespace, with the text directly on the
+    # SummaryText element.
+    alerts: list[str] = []
+    for sit in root.findall(".//o:PtSituation", _OJP_NS):
+        text = _txt(sit, ".//s:SummaryContent/s:SummaryText") or _txt(sit, ".//s:SummaryText")
+        if text:
+            text = text.strip()
+            if text and text not in alerts:
+                alerts.append(text)
+
+    events: dict[int, list[dict]] = {}
+    for r in root.findall(".//o:StopEventResult", _OJP_NS):
+        planned = _ojp_iso_to_ts(_txt(r, ".//o:ServiceDeparture/o:TimetabledTime"))
+        if planned is None:
+            continue
+        estimated = _ojp_iso_to_ts(_txt(r, ".//o:ServiceDeparture/o:EstimatedTime"))
+        planned_quay = _txt(r, ".//o:PlannedQuay/o:Text")
+        estimated_quay = _txt(r, ".//o:EstimatedQuay/o:Text")
+        cancelled = (_txt(r, ".//o:Cancelled") or "").lower() == "true"
+
+        occupancy = None
+        for occ in r.findall(".//o:ExpectedDepartureOccupancy", _OJP_NS):
+            level = (_txt(occ, "o:OccupancyLevel") or "").strip().lower()
+            mapped = _OCCUPANCY_LEVEL.get(level.replace(" ", ""))
+            if mapped is not None:
+                occupancy = max(occupancy or 0, mapped)
+
+        events.setdefault(planned, []).append(
+            {
+                "destination": (_txt(r, ".//o:DestinationText/o:Text") or "").strip(),
+                "estimated_ts": estimated,
+                "cancelled": cancelled,
+                "planned_quay": planned_quay,
+                "estimated_quay": estimated_quay,
+                "occupancy": occupancy,
+            }
+        )
+    return {"events": events, "alerts": alerts}
+
+
+async def async_fetch_ojp_stationboard(
+    hass: HomeAssistant, token: str, station_id: str, limit: int
+) -> dict:
+    """POST an OJP StopEventRequest and parse the response. Raises on failure;
+    callers treat enrichment as best-effort and fall back to opendata.ch."""
+    session = async_get_clientsession(hass)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/xml",
+    }
+    body = _build_stop_event_request(station_id, limit)
+    async with session.post(
+        OJP_ENDPOINT, data=body.encode("utf-8"), headers=headers, timeout=FETCH_TIMEOUT_SECONDS
+    ) as resp:
+        resp.raise_for_status()
+        text = await resp.text()
+    return _parse_ojp_stationboard(text)
+
+
+def _apply_ojp(board: dict, ojp: dict) -> None:
+    """Overlay OJP real-time facts onto the opendata.ch board in place."""
+    events = ojp.get("events") or {}
+    for dep in board.get("departures", []):
+        matches = events.get(dep["departure_ts"])
+        if not matches:
+            continue
+        # Disambiguate several departures at the same minute by destination.
+        match = None
+        if len(matches) == 1:
+            match = matches[0]
+        else:
+            to = (dep.get("to") or "").strip().lower()
+            for m in matches:
+                if m["destination"].lower() == to:
+                    match = m
+                    break
+            match = match or matches[0]
+
+        dep["cancelled"] = match["cancelled"]
+        if match.get("occupancy"):
+            dep["occupancy"] = match["occupancy"]
+        # Fresher, second-accurate delay from the estimated time.
+        if match.get("estimated_ts"):
+            dep["delay"] = max(0, round((match["estimated_ts"] - dep["departure_ts"]) / 60))
+        # Platform change from the effective quay.
+        eq = (match.get("estimated_quay") or "").strip()
+        pq = (match.get("planned_quay") or dep.get("platform") or "").strip()
+        if eq and eq != pq:
+            dep["platform_changed"] = True
+            dep["platform"] = eq
+    board["alerts"] = ojp.get("alerts") or []
+    board["realtime"] = True
+
+
 def _duration_to_minutes(value) -> int | None:
     """'00d00:27:00' -> 27 (total minutes)."""
     try:
@@ -238,6 +404,20 @@ async def async_fetch_connections(
     }
 
 
+def _resolve_ojp_token(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
+    """The optional OJP real-time token. Read from this entry first, then from
+    any sibling entry that has one — so it need only be entered once and then
+    enriches every station board."""
+    own = (entry.options.get(CONF_OJP_TOKEN) or entry.data.get(CONF_OJP_TOKEN) or "").strip()
+    if own:
+        return own
+    for other in hass.config_entries.async_entries(DOMAIN):
+        tok = (other.options.get(CONF_OJP_TOKEN) or other.data.get(CONF_OJP_TOKEN) or "").strip()
+        if tok:
+            return tok
+    return None
+
+
 class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
     """Fetches the departure board for one configured station."""
 
@@ -264,6 +444,18 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
             )
         except Exception as err:
             raise UpdateFailed(f"transport.opendata.ch unreachable: {err}") from err
+
+        # Optional real-time enrichment (opentransportdata.swiss OJP). Strictly
+        # best-effort: any failure leaves the opendata.ch board untouched.
+        token = _resolve_ojp_token(self.hass, self._entry)
+        if token:
+            try:
+                ojp = await async_fetch_ojp_stationboard(
+                    self.hass, token, data[CONF_STATION_ID], limit
+                )
+                _apply_ojp(result, ojp)
+            except Exception:  # noqa: BLE001 - enrichment must never break the board
+                _LOGGER.debug("OJP real-time enrichment failed", exc_info=True)
 
         # Resolve the station address once (best-effort). Retried on later
         # polls only until it succeeds, so a transient geocoder hiccup isn't

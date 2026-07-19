@@ -21,6 +21,9 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 from .const import (
@@ -28,6 +31,7 @@ from .const import (
     CONF_FROM_ID,
     CONF_FROM_NAME,
     CONF_LIMIT,
+    CONF_OJP_TOKEN,
     CONF_STATION_ID,
     CONF_STATION_NAME,
     CONF_TO_ID,
@@ -57,6 +61,45 @@ def _limit_selector() -> NumberSelector:
     return NumberSelector(
         NumberSelectorConfig(min=1, max=MAX_LIMIT, step=1, mode=NumberSelectorMode.BOX)
     )
+
+
+def _token_selector() -> TextSelector:
+    return TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+
+
+def _effective_token(hass) -> str:
+    """The OJP token currently configured anywhere in the integration. The
+    token is integration-wide: set once, it applies to every station board."""
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        tok = (entry.options.get(CONF_OJP_TOKEN) or entry.data.get(CONF_OJP_TOKEN) or "").strip()
+        if tok:
+            return tok
+    return ""
+
+
+def _apply_token_everywhere(hass, token: str, current_entry_id: str | None = None) -> None:
+    """Keep the OJP token consistent across all entries so it can be managed
+    from any one of them. Options are the single source of truth; the token is
+    stripped from entry .data. The current entry's options are set by the
+    caller's returned result, so only its .data is cleaned here."""
+    token = (token or "").strip()
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        new_options = dict(entry.options)
+        new_data = dict(entry.data)
+        changed = False
+        if entry.entry_id != current_entry_id:
+            if token:
+                if new_options.get(CONF_OJP_TOKEN) != token:
+                    new_options[CONF_OJP_TOKEN] = token
+                    changed = True
+            elif CONF_OJP_TOKEN in new_options:
+                new_options.pop(CONF_OJP_TOKEN)
+                changed = True
+        if CONF_OJP_TOKEN in new_data:
+            new_data.pop(CONF_OJP_TOKEN)
+            changed = True
+        if changed:
+            hass.config_entries.async_update_entry(entry, data=new_data, options=new_options)
 
 
 def _transport_selector(hass) -> SelectSelector:
@@ -136,15 +179,19 @@ class SwissTransportConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             transportations = user_input.get(CONF_TRANSPORTATIONS) or []
+            data = {
+                CONF_ENTRY_TYPE: ENTRY_TYPE_STATION,
+                CONF_STATION_ID: station["id"],
+                CONF_STATION_NAME: station["name"],
+                CONF_LIMIT: int(user_input.get(CONF_LIMIT, DEFAULT_LIMIT)),
+                CONF_TRANSPORTATIONS: transportations,
+            }
+            token = (user_input.get(CONF_OJP_TOKEN) or "").strip()
+            if token:
+                data[CONF_OJP_TOKEN] = token
             return self.async_create_entry(
                 title=t("device_name", self.hass, station=station["name"]),
-                data={
-                    CONF_ENTRY_TYPE: ENTRY_TYPE_STATION,
-                    CONF_STATION_ID: station["id"],
-                    CONF_STATION_NAME: station["name"],
-                    CONF_LIMIT: int(user_input.get(CONF_LIMIT, DEFAULT_LIMIT)),
-                    CONF_TRANSPORTATIONS: transportations,
-                },
+                data=data,
             )
 
         options = [
@@ -158,6 +205,9 @@ class SwissTransportConfigFlow(ConfigFlow, domain=DOMAIN):
                 ),
                 vol.Optional(CONF_LIMIT, default=DEFAULT_LIMIT): _limit_selector(),
                 vol.Optional(CONF_TRANSPORTATIONS, default=[]): _transport_selector(self.hass),
+                # Pre-filled with the token already configured elsewhere so a
+                # new station inherits it without re-entering.
+                vol.Optional(CONF_OJP_TOKEN, default=_effective_token(self.hass)): _token_selector(),
             }
         )
         return self.async_show_form(step_id="pick", data_schema=schema)
@@ -249,6 +299,12 @@ class SwissTransportOptionsFlow(OptionsFlow):
             new = {CONF_LIMIT: int(user_input.get(CONF_LIMIT, DEFAULT_LIMIT))}
             if not is_connection:
                 new[CONF_TRANSPORTATIONS] = user_input.get(CONF_TRANSPORTATIONS) or []
+                token = (user_input.get(CONF_OJP_TOKEN) or "").strip()
+                if token:
+                    new[CONF_OJP_TOKEN] = token
+                # The token is integration-wide: sync it to every other entry
+                # (and clean it out of .data) so it can be managed from here.
+                _apply_token_everywhere(self.hass, token, current_entry_id=self.config_entry.entry_id)
             return self.async_create_entry(data=new)
 
         default_limit = int(
@@ -267,4 +323,7 @@ class SwissTransportOptionsFlow(OptionsFlow):
                     default=list(options.get(CONF_TRANSPORTATIONS, data.get(CONF_TRANSPORTATIONS) or [])),
                 )
             ] = _transport_selector(self.hass)
+            fields[
+                vol.Optional(CONF_OJP_TOKEN, default=_effective_token(self.hass))
+            ] = _token_selector()
         return self.async_show_form(step_id="init", data_schema=vol.Schema(fields))

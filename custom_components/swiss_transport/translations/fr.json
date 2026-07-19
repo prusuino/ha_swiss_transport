@@ -21,7 +21,11 @@
         "data": {
           "station_id": "Arrêt",
           "limit": "Nombre de départs",
-          "transportations": "Types de transport (vide = tous)"
+          "transportations": "Types de transport (vide = tous)",
+          "ojp_token": "Jeton temps réel (facultatif)"
+        },
+        "data_description": {
+          "ojp_token": "Facultatif. Collez un jeton d'API Open Journey Planner (OJP 2.0) de opentransportdata.swiss pour des retards plus frais, les suppressions, les changements de voie et l'occupation. Laissez vide pour n'utiliser que opendata.ch."
         }
       },
       "connection": {
@@ -56,7 +60,11 @@
         "title": "Options",
         "data": {
           "limit": "Nombre affiché",
-          "transportations": "Types de transport (vide = tous)"
+          "transportations": "Types de transport (vide = tous)",
+          "ojp_token": "Jeton temps réel (facultatif)"
+        },
+        "data_description": {
+          "ojp_token": "Jeton d'API OJP 2.0 facultatif de opentransportdata.swiss pour des retards plus frais, les suppressions, les changements de voie et l'occupation. Saisi une fois, il enrichit chaque tableau des départs. Laissez vide pour n'utiliser que opendata.ch."
         }
       }
     }

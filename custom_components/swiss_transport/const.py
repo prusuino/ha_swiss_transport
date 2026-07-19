@@ -26,6 +26,15 @@ CONF_STATION_NAME = "station_name"
 CONF_LIMIT = "limit"
 CONF_TRANSPORTATIONS = "transportations"
 
+# Optional real-time enrichment via the official opentransportdata.swiss
+# Open Journey Planner (OJP 2.0) API. When a token is configured, the station
+# board is enriched with fresher delays, cancellations, platform changes,
+# disruption messages and occupancy. Without a token everything works as
+# before, sourced purely from opendata.ch.
+CONF_OJP_TOKEN = "ojp_token"
+OJP_ENDPOINT = "https://api.opentransportdata.swiss/ojp20"
+OJP_REQUESTOR_REF = "HA-Swiss-Transport"
+
 # Connection (from -> to) config keys.
 CONF_FROM_ID = "from_id"
 CONF_FROM_NAME = "from_name"

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 — 2026-07-19
+
+Optional real-time enrichment.
+
+- **Real-time via opentransportdata.swiss (OJP 2.0)** — configure a free API token to enrich station boards with fresher, second-accurate delays, **cancellations**, platform changes, **disruption messages** and **occupancy**. Entirely optional: without a token everything keeps working from transport.opendata.ch. The token is entered once (in the station's setup or Configure dialog) and enriches every board.
+- **Card additions** (station board): cancelled departures are struck through and marked, a disruption banner is shown above the board, and an occupancy column appears when data is available. New visual-editor toggles `show_occupancy` and `show_alerts`, plus `max_alerts` to control how many disruption messages are shown before "+N more" (0 = all).
+- **New sensor attributes**: `realtime` (bool) and `alerts` (disruption messages); `departures` entries gain `cancelled` and `occupancy` when real-time is enabled.
+- **Attribution**: the station sensor now credits every source actually used — transport.opendata.ch (search.ch), OpenStreetMap contributors (address), and opentransportdata.swiss (OJP, when real-time is active). See NOTICE.md.
+
 ## 1.0.0 — 2026-07-19
 
 Initial release.

@@ -27,6 +27,12 @@ from .localization import t
 
 _LOGGER = logging.getLogger(__name__)
 ATTRIBUTION = "Data: transport.opendata.ch (search.ch)"
+# The station board additionally resolves the address via OpenStreetMap and,
+# when a token is configured, real-time data via opentransportdata.swiss.
+ATTRIBUTION_STATION = (
+    "Data: transport.opendata.ch (search.ch). Address: © OpenStreetMap contributors"
+)
+ATTRIBUTION_OJP = "Real-time: opentransportdata.swiss (OJP)"
 
 
 async def async_setup_entry(
@@ -52,9 +58,17 @@ class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator
     """Next departure at a station; the full board is in the attributes."""
 
     _attr_has_entity_name = False
-    _attr_attribution = ATTRIBUTION
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:train"
+
+    @property
+    def attribution(self) -> str:
+        """Credit every source actually used, including the optional OJP
+        real-time feed when the board was enriched with it."""
+        base = ATTRIBUTION_STATION
+        if (self.coordinator.data or {}).get("realtime"):
+            return f"{base}. {ATTRIBUTION_OJP}"
+        return base
 
     def __init__(
         self, hass: HomeAssistant, coordinator: SwissTransportCoordinator, entry: ConfigEntry
@@ -87,6 +101,11 @@ class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator
             "latitude": data.get("latitude"),
             "longitude": data.get("longitude"),
             "departure_count": len(deps),
+            # True when the board was enriched with opentransportdata.swiss
+            # OJP real-time data (fresher delays, cancellations, occupancy).
+            "realtime": bool(data.get("realtime")),
+            # Active disruption messages for the station (OJP only).
+            "alerts": data.get("alerts") or [],
             # The whole board — the bundled card renders this; also handy for
             # templates and automations.
             "departures": deps,

@@ -11,8 +11,15 @@ const HDR_TIME = { de: "Zeit", en: "Time", fr: "Heure", it: "Ora" };
 const HDR_IN = { de: "in", en: "in", fr: "dans", it: "tra" };
 const HDR_TO = { de: "Nach", en: "To", fr: "Direction", it: "Direzione" };
 const HDR_PLATFORM = { de: "Gleis", en: "Platform", fr: "Voie", it: "Binario" };
+const HDR_OCC = { de: "Ausl.", en: "Occ.", fr: "Occ.", it: "Occ." };
 const HDR_INFO = { de: "Hinweis", en: "Info", fr: "Info", it: "Info" };
 const NOW_WORD = { de: "jetzt", en: "now", fr: "maint.", it: "ora" };
+const CANCELLED_WORD = { de: "Ausfall", en: "Cancelled", fr: "Supprimé", it: "Soppresso" };
+const MORE_ALERTS = { de: "+{n} weitere", en: "+{n} more", fr: "+{n} de plus", it: "+{n} altre" };
+
+// Occupancy (from OJP): coarse 1 (low) .. 3 (high), shown as a small icon.
+const OCC_ICON = { 1: "mdi:account", 2: "mdi:account-multiple", 3: "mdi:account-group" };
+const OCC_COLOR = { 1: "#2e7d32", 2: "#f9a825", 3: "#c62828" };
 const LATE_FMT = {
   de: "+{n} Min",
   en: "+{n} min",
@@ -157,6 +164,7 @@ class SwissTransportCard extends HTMLElement {
       (st && st.attributes && st.attributes.friendly_name) ||
       "";
     const address = (st && st.attributes && st.attributes.address) || "";
+    const attrs = (st && st.attributes) || {};
     const now = nowParts(lang);
     const deps = this._departures().slice(0, this._maxRows());
     const nowMs = Date.now();
@@ -164,9 +172,16 @@ class SwissTransportCard extends HTMLElement {
     // (bus/tram stops). The destination column flexes to fill the card, so
     // nothing overflows regardless.
     const anyPlatform = deps.some((d) => d.platform);
-    const cols = anyPlatform
-      ? "auto auto auto minmax(80px, 1fr) auto auto"
-      : "auto auto auto minmax(80px, 1fr) auto";
+    // Occupancy column only appears when the (optional) OJP real-time source
+    // actually supplied occupancy for at least one departure.
+    const anyOcc =
+      this._config.show_occupancy !== false &&
+      deps.some((d) => Number.isFinite(d.occupancy) && d.occupancy > 0);
+    const col = ["auto", "auto", "auto", "minmax(80px, 1fr)"];
+    if (anyPlatform) col.push("auto");
+    if (anyOcc) col.push("auto");
+    col.push("auto"); // hint
+    const cols = col.join(" ");
 
     const header = `
       <div class="cell hdr"></div>
@@ -174,6 +189,7 @@ class SwissTransportCard extends HTMLElement {
       <div class="cell hdr">${HDR_IN[lang] || HDR_IN.en}</div>
       <div class="cell hdr">${HDR_TO[lang] || HDR_TO.en}</div>
       ${anyPlatform ? `<div class="cell hdr">${HDR_PLATFORM[lang] || HDR_PLATFORM.en}</div>` : ""}
+      ${anyOcc ? `<div class="cell hdr occ">${HDR_OCC[lang] || HDR_OCC.en}</div>` : ""}
       <div class="cell hdr">${HDR_INFO[lang] || HDR_INFO.en}</div>`;
 
     const rows = deps
@@ -186,28 +202,65 @@ class SwissTransportCard extends HTMLElement {
             ? `${d.category} ${d.number}`
             : d.line || d.category || "?";
         const badgeStyle = pcls === "other" ? `background:${MODE_COLOR[m]};color:#fff;` : "";
+        const cancelled = !!d.cancelled;
         const delay = Number.isFinite(d.delay) ? d.delay : null;
         const timeStr = d.departure ? String(d.departure).substr(11, 5) : "";
         // Countdown to the real (delay-adjusted) departure.
         const depMs = (d.departure_ts || 0) * 1000 + (delay ? delay * 60000 : 0);
         const minsLeft = Math.round((depMs - nowMs) / 60000);
-        const countdown = minsLeft <= 0 ? (NOW_WORD[lang] || NOW_WORD.en) : `${minsLeft}′`;
-        const hint =
-          delay && delay > 0
-            ? (LATE_FMT[lang] || LATE_FMT.en).replace("{n}", delay)
-            : "";
+        const countdown = cancelled
+          ? ""
+          : minsLeft <= 0
+            ? (NOW_WORD[lang] || NOW_WORD.en)
+            : `${minsLeft}′`;
+        // Hint column: cancellation takes precedence, then a delay. Both are
+        // controlled text, safe as HTML. Station-wide disruptions are shown in
+        // the banner above rather than marking every row.
+        let hintHtml = "";
+        if (cancelled) {
+          hintHtml = `<span class="cxl">${CANCELLED_WORD[lang] || CANCELLED_WORD.en}</span>`;
+        } else if (delay && delay > 0) {
+          hintHtml = this._escape((LATE_FMT[lang] || LATE_FMT.en).replace("{n}", delay));
+        }
+        const occCell = anyOcc
+          ? `<div class="cell occ">${
+              Number.isFinite(d.occupancy) && d.occupancy > 0
+                ? `<ha-icon icon="${OCC_ICON[d.occupancy]}" style="color:${OCC_COLOR[d.occupancy]};--mdc-icon-size:20px;"></ha-icon>`
+                : ""
+            }</div>`
+          : "";
         return `
           <div class="cell linecell">
             <ha-icon class="mode" icon="${MODE_ICON[m]}" style="color:${MODE_COLOR[m]};"></ha-icon>
             <div class="badge ${pcls}" style="${badgeStyle}">${this._escape(badgeText)}</div>
           </div>
-          <div class="cell zeit">${this._escape(timeStr)}</div>
+          <div class="cell zeit${cancelled ? " cancelled" : ""}">${this._escape(timeStr)}</div>
           <div class="cell cd">${this._escape(countdown)}</div>
           <div class="cell to"><span class="totxt">${this._escape(d.to || "")}</span></div>
           ${anyPlatform ? `<div class="cell platform${d.platform_changed ? " chg" : ""}">${this._escape(d.platform || "")}</div>` : ""}
-          <div class="cell hint">${this._escape(hint)}</div>`;
+          ${occCell}
+          <div class="cell hint">${hintHtml}</div>`;
       })
       .join("");
+
+    // Station-wide disruption messages (OJP only), shown as a banner above the
+    // board. Toggleable via the visual editor.
+    const alerts = Array.isArray(attrs.alerts) ? attrs.alerts : [];
+    // How many disruption messages to show; 0 (or negative) means all.
+    const maxAlertsCfg = parseInt(this._config.max_alerts, 10);
+    const maxAlerts = Number.isFinite(maxAlertsCfg) ? maxAlertsCfg : 3;
+    const alertsShown = maxAlerts <= 0 ? alerts : alerts.slice(0, maxAlerts);
+    const alertsMore = alerts.length - alertsShown.length;
+    const alertsHtml =
+      this._config.show_alerts !== false && alerts.length
+        ? `<div class="alerts">${alertsShown
+            .map((a) => `<div class="alert"><ha-icon icon="mdi:alert"></ha-icon><span>${this._escape(a)}</span></div>`)
+            .join("")}${
+            alertsMore > 0
+              ? `<div class="alert-more">${this._escape((MORE_ALERTS[lang] || MORE_ALERTS.en).replace("{n}", alertsMore))}</div>`
+              : ""
+          }</div>`
+        : "";
 
     this._root.innerHTML = `
       <style>
@@ -256,7 +309,20 @@ class SwissTransportCard extends HTMLElement {
         .totxt { max-width: 168px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .platform { font-weight: 700; }
         .platform.chg { color: var(--warning-color, #f9a825); }
+        .occ { justify-content: center; }
         .hint { color: var(--error-color, #c62828); font-weight: 600; font-size: 0.9em; }
+        .hint .cxl { color: var(--error-color, #c62828); font-weight: 700; }
+        .zeit.cancelled { text-decoration: line-through; color: var(--secondary-text-color); font-weight: 500; }
+        .alerts { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 10px; }
+        .alert {
+          display: flex; gap: 6px; align-items: flex-start; white-space: normal;
+          font-size: 0.85em; color: var(--primary-text-color);
+          background: rgba(249, 168, 37, 0.12);
+          border-left: 3px solid var(--warning-color, #f9a825);
+          padding: 5px 8px; border-radius: 4px;
+        }
+        .alert ha-icon { --mdc-icon-size: 18px; color: var(--warning-color, #f9a825); flex: none; }
+        .alert-more { font-size: 0.8em; color: var(--secondary-text-color); padding: 0 8px; }
         .empty { padding: 14px 0; color: var(--secondary-text-color); text-align: center; }
       </style>
       <ha-card>
@@ -272,6 +338,7 @@ class SwissTransportCard extends HTMLElement {
             </div>
             ${address ? `<div class="addr">${this._escape(address)}</div>` : ""}
           </div>
+          ${alertsHtml}
           ${rows ? `<div class="board" style="grid-template-columns:${cols};">${header}${rows}</div>` : `<div class="empty">${NO_DEP_WORD[lang] || NO_DEP_WORD.en}</div>`}
         </div>
       </ha-card>`;
@@ -292,6 +359,9 @@ const EDITOR_LABELS = {
   rows: { de: "Maximale Zeilen", en: "Max rows", fr: "Lignes max.", it: "Righe max." },
   show_clock: { de: "Datum & Uhrzeit anzeigen", en: "Show date & time", fr: "Afficher date & heure", it: "Mostra data e ora" },
   show_type: { de: "Typ-Label anzeigen", en: "Show type label", fr: "Afficher le libellé de type", it: "Mostra etichetta tipo" },
+  show_occupancy: { de: "Auslastung anzeigen", en: "Show occupancy", fr: "Afficher l'occupation", it: "Mostra occupazione" },
+  show_alerts: { de: "Störungsmeldungen anzeigen", en: "Show disruptions", fr: "Afficher les perturbations", it: "Mostra perturbazioni" },
+  max_alerts: { de: "Max. Störungsmeldungen (0 = alle)", en: "Max disruptions (0 = all)", fr: "Perturbations max. (0 = toutes)", it: "Perturbazioni max. (0 = tutte)" },
 };
 
 class SwissTransportCardEditor extends HTMLElement {
@@ -317,6 +387,10 @@ class SwissTransportCardEditor extends HTMLElement {
         // Keep the config clean: only store the toggles when turned off.
         if (config.show_clock !== false) delete config.show_clock;
         if (config.show_type !== false) delete config.show_type;
+        if (config.show_occupancy !== false) delete config.show_occupancy;
+        if (config.show_alerts !== false) delete config.show_alerts;
+        // Default is 3; only persist when the user chose something else.
+        if (config.max_alerts === "" || config.max_alerts === null || config.max_alerts === 3) delete config.max_alerts;
         this.dispatchEvent(
           new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true })
         );
@@ -331,6 +405,9 @@ class SwissTransportCardEditor extends HTMLElement {
       rows: this._config.rows || 8,
       show_clock: this._config.show_clock !== false,
       show_type: this._config.show_type !== false,
+      show_occupancy: this._config.show_occupancy !== false,
+      show_alerts: this._config.show_alerts !== false,
+      max_alerts: Number.isFinite(parseInt(this._config.max_alerts, 10)) ? parseInt(this._config.max_alerts, 10) : 3,
     };
     this._form.schema = [
       { name: "entity", required: true, selector: { entity: { domain: "sensor", integration: "swiss_transport" } } },
@@ -338,6 +415,9 @@ class SwissTransportCardEditor extends HTMLElement {
       { name: "rows", selector: { number: { min: 1, max: 20, mode: "box" } } },
       { name: "show_clock", selector: { boolean: {} } },
       { name: "show_type", selector: { boolean: {} } },
+      { name: "show_occupancy", selector: { boolean: {} } },
+      { name: "show_alerts", selector: { boolean: {} } },
+      { name: "max_alerts", selector: { number: { min: 0, max: 20, mode: "box" } } },
     ];
     this._form.computeLabel = (schema) =>
       (EDITOR_LABELS[schema.name] && (EDITOR_LABELS[schema.name][lang] || EDITOR_LABELS[schema.name].en)) ||

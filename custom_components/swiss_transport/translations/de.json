@@ -21,7 +21,11 @@
         "data": {
           "station_id": "Haltestelle",
           "limit": "Anzahl Abfahrten",
-          "transportations": "Verkehrsmittel (leer = alle)"
+          "transportations": "Verkehrsmittel (leer = alle)",
+          "ojp_token": "Echtzeit-Token (optional)"
+        },
+        "data_description": {
+          "ojp_token": "Optional. OJP-2.0-Token von opentransportdata.swiss einfügen für frischere Verspätungen, Ausfälle, Gleiswechsel und Auslastung. Leer lassen = nur opendata.ch."
         }
       },
       "connection": {
@@ -56,7 +60,11 @@
         "title": "Optionen",
         "data": {
           "limit": "Angezeigte Anzahl",
-          "transportations": "Verkehrsmittel (leer = alle)"
+          "transportations": "Verkehrsmittel (leer = alle)",
+          "ojp_token": "Echtzeit-Token (optional)"
+        },
+        "data_description": {
+          "ojp_token": "Optionaler OJP-2.0-Token von opentransportdata.swiss für frischere Verspätungen, Ausfälle, Gleiswechsel und Auslastung. Einmal eingegeben, reichert er jede Abfahrtstafel an. Leer lassen = nur opendata.ch."
         }
       }
     }

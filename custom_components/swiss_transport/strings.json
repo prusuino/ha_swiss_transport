@@ -21,7 +21,11 @@
         "data": {
           "station_id": "Station",
           "limit": "Number of departures",
-          "transportations": "Transport types (empty = all)"
+          "transportations": "Transport types (empty = all)",
+          "ojp_token": "Real-time token (optional)"
+        },
+        "data_description": {
+          "ojp_token": "Optional. Paste an Open Journey Planner (OJP 2.0) API token from opentransportdata.swiss to add fresher delays, cancellations, platform changes and occupancy. Leave empty to use opendata.ch only."
         }
       },
       "connection": {
@@ -56,7 +60,11 @@
         "title": "Options",
         "data": {
           "limit": "Number shown",
-          "transportations": "Transport types (empty = all)"
+          "transportations": "Transport types (empty = all)",
+          "ojp_token": "Real-time token (optional)"
+        },
+        "data_description": {
+          "ojp_token": "Optional OJP 2.0 API token from opentransportdata.swiss for fresher delays, cancellations, platform changes and occupancy. Entered once, it enriches every station board. Leave empty to use opendata.ch only."
         }
       }
     }

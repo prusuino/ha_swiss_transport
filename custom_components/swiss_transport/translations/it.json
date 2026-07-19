@@ -21,7 +21,11 @@
         "data": {
           "station_id": "Fermata",
           "limit": "Numero di partenze",
-          "transportations": "Mezzi di trasporto (vuoto = tutti)"
+          "transportations": "Mezzi di trasporto (vuoto = tutti)",
+          "ojp_token": "Token in tempo reale (facoltativo)"
+        },
+        "data_description": {
+          "ojp_token": "Facoltativo. Incolla un token API Open Journey Planner (OJP 2.0) di opentransportdata.swiss per ritardi più aggiornati, soppressioni, cambi di binario e occupazione. Lascia vuoto per usare solo opendata.ch."
         }
       },
       "connection": {
@@ -56,7 +60,11 @@
         "title": "Opzioni",
         "data": {
           "limit": "Numero mostrato",
-          "transportations": "Mezzi di trasporto (vuoto = tutti)"
+          "transportations": "Mezzi di trasporto (vuoto = tutti)",
+          "ojp_token": "Token in tempo reale (facoltativo)"
+        },
+        "data_description": {
+          "ojp_token": "Token API OJP 2.0 facoltativo di opentransportdata.swiss per ritardi più aggiornati, soppressioni, cambi di binario e occupazione. Inserito una volta, arricchisce ogni tabellone. Lascia vuoto per usare solo opendata.ch."
         }
       }
     }
