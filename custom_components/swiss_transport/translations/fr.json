@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Swiss Transport",
+        "description": "Choisissez ce qu'il faut ajouter : un tableau des départs d'un arrêt, ou une liaison enregistrée (de → à) — p. ex. votre trajet quotidien.",
+        "data": {
+          "mode": "Mode"
+        }
+      },
+      "station": {
+        "title": "Rechercher un arrêt",
+        "description": "Saisissez une partie du nom de l'arrêt pour rechercher.",
+        "data": {
+          "query": "Nom de l'arrêt"
+        }
+      },
+      "pick": {
+        "title": "Choisir l'arrêt",
+        "description": "Choisissez l'arrêt exact, le nombre de départs et éventuellement une restriction des types de transport.",
+        "data": {
+          "station_id": "Arrêt",
+          "limit": "Nombre de départs",
+          "transportations": "Types de transport (vide = tous)"
+        }
+      },
+      "connection": {
+        "title": "Liaison : de et à",
+        "description": "Saisissez une partie du nom des deux arrêts pour rechercher.",
+        "data": {
+          "from_query": "De (nom de l'arrêt)",
+          "to_query": "À (nom de l'arrêt)"
+        }
+      },
+      "connection_pick": {
+        "title": "Choisir origine et destination",
+        "description": "Choisissez les arrêts exacts et le nombre de liaisons affichées.",
+        "data": {
+          "from_id": "De",
+          "to_id": "À",
+          "limit": "Nombre de liaisons"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Cet arrêt ou cette liaison est déjà configuré."
+    },
+    "error": {
+      "cannot_connect": "transport.opendata.ch n'a pas pu être atteint.",
+      "no_stations_found": "Aucun arrêt trouvé pour ce nom."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "limit": "Nombre affiché",
+          "transportations": "Types de transport (vide = tous)"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Swiss Transport",
+        "description": "Wähle, was hinzugefügt werden soll: eine Abfahrtstafel einer Haltestelle, oder eine gespeicherte Verbindung (von → nach) — z.B. dein täglicher Arbeitsweg.",
+        "data": {
+          "mode": "Modus"
+        }
+      },
+      "station": {
+        "title": "Haltestelle suchen",
+        "description": "Gib einen Teil des Haltestellennamens ein zum Suchen.",
+        "data": {
+          "query": "Haltestellenname"
+        }
+      },
+      "pick": {
+        "title": "Haltestelle auswählen",
+        "description": "Wähle die genaue Haltestelle, wie viele Abfahrten angezeigt werden, und optional eine Einschränkung auf Verkehrsmittel.",
+        "data": {
+          "station_id": "Haltestelle",
+          "limit": "Anzahl Abfahrten",
+          "transportations": "Verkehrsmittel (leer = alle)"
+        }
+      },
+      "connection": {
+        "title": "Verbindung: von und nach",
+        "description": "Gib von beiden Haltestellen einen Teil des Namens ein zum Suchen.",
+        "data": {
+          "from_query": "Von (Haltestellenname)",
+          "to_query": "Nach (Haltestellenname)"
+        }
+      },
+      "connection_pick": {
+        "title": "Start und Ziel auswählen",
+        "description": "Wähle die genauen Haltestellen und wie viele Verbindungen angezeigt werden.",
+        "data": {
+          "from_id": "Von",
+          "to_id": "Nach",
+          "limit": "Anzahl Verbindungen"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Diese Haltestelle oder Verbindung ist bereits konfiguriert."
+    },
+    "error": {
+      "cannot_connect": "transport.opendata.ch konnte nicht erreicht werden.",
+      "no_stations_found": "Keine Haltestelle mit diesem Namen gefunden."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Optionen",
+        "data": {
+          "limit": "Angezeigte Anzahl",
+          "transportations": "Verkehrsmittel (leer = alle)"
+        }
+      }
+    }
+  }
+}

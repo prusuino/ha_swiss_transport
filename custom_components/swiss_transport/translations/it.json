@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Swiss Transport",
+        "description": "Scegli cosa aggiungere: un tabellone delle partenze di una fermata, oppure un collegamento salvato (da → a) — ad es. il tuo tragitto quotidiano.",
+        "data": {
+          "mode": "Modalità"
+        }
+      },
+      "station": {
+        "title": "Cerca una fermata",
+        "description": "Digita parte del nome della fermata per cercare.",
+        "data": {
+          "query": "Nome della fermata"
+        }
+      },
+      "pick": {
+        "title": "Scegli la fermata",
+        "description": "Scegli la fermata esatta, quante partenze mostrare e facoltativamente una restrizione dei mezzi.",
+        "data": {
+          "station_id": "Fermata",
+          "limit": "Numero di partenze",
+          "transportations": "Mezzi di trasporto (vuoto = tutti)"
+        }
+      },
+      "connection": {
+        "title": "Collegamento: da e a",
+        "description": "Digita parte del nome di entrambe le fermate per cercare.",
+        "data": {
+          "from_query": "Da (nome fermata)",
+          "to_query": "A (nome fermata)"
+        }
+      },
+      "connection_pick": {
+        "title": "Scegli partenza e destinazione",
+        "description": "Scegli le fermate esatte e quanti collegamenti mostrare.",
+        "data": {
+          "from_id": "Da",
+          "to_id": "A",
+          "limit": "Numero di collegamenti"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Questa fermata o questo collegamento è già configurato."
+    },
+    "error": {
+      "cannot_connect": "Impossibile raggiungere transport.opendata.ch.",
+      "no_stations_found": "Nessuna fermata trovata con questo nome."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni",
+        "data": {
+          "limit": "Numero mostrato",
+          "transportations": "Mezzi di trasporto (vuoto = tutti)"
+        }
+      }
+    }
+  }
+}

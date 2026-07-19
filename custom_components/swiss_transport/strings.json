@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Swiss Transport",
+        "description": "Choose what to add: a departure board of a station, or a saved connection (from → to) — e.g. your daily commute.",
+        "data": {
+          "mode": "Mode"
+        }
+      },
+      "station": {
+        "title": "Search a station",
+        "description": "Type part of the station name to search.",
+        "data": {
+          "query": "Station name"
+        }
+      },
+      "pick": {
+        "title": "Pick the station",
+        "description": "Choose the exact stop, how many departures to show, and optionally limit the transport types.",
+        "data": {
+          "station_id": "Station",
+          "limit": "Number of departures",
+          "transportations": "Transport types (empty = all)"
+        }
+      },
+      "connection": {
+        "title": "Connection: from and to",
+        "description": "Type part of both station names to search.",
+        "data": {
+          "from_query": "From (station name)",
+          "to_query": "To (station name)"
+        }
+      },
+      "connection_pick": {
+        "title": "Pick origin and destination",
+        "description": "Choose the exact stops and how many connections to show.",
+        "data": {
+          "from_id": "From",
+          "to_id": "To",
+          "limit": "Number of connections"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This station or connection is already configured."
+    },
+    "error": {
+      "cannot_connect": "transport.opendata.ch could not be reached.",
+      "no_stations_found": "No station found for this name."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "limit": "Number shown",
+          "transportations": "Transport types (empty = all)"
+        }
+      }
+    }
+  }
+}

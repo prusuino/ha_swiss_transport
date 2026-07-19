@@ -1,0 +1,20 @@
+{
+  "domain": "swiss_transport",
+  "name": "Swiss Transport",
+  "after_dependencies": [
+    "lovelace"
+  ],
+  "codeowners": [
+    "@prusuino"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "http"
+  ],
+  "documentation": "https://github.com/prusuino/ha_swiss_transport",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/prusuino/ha_swiss_transport/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

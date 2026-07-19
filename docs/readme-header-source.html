@@ -1,0 +1,36 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  * { margin:0; padding:0; }
+  body { width:1280px; height:320px; overflow:hidden;
+    font-family:"Liberation Sans", Arial, sans-serif;
+    background:
+      radial-gradient(700px 500px at 90% -20%, rgba(30,58,110,.5), transparent 60%),
+      radial-gradient(700px 500px at -5% 120%, rgba(120,25,20,.4), transparent 60%),
+      #0B0D12;
+    display:flex; align-items:center; }
+  .left { margin-left:76px; width:530px; flex:none; }
+  .brand { display:flex; align-items:center; margin-bottom:16px; }
+  .cross { width:38px; height:38px; background:#DA291C; border-radius:8px; position:relative; margin-right:16px; }
+  .cross::before { content:""; position:absolute; left:15.5px; top:8px; width:7px; height:22px; background:#fff; }
+  .cross::after  { content:""; position:absolute; top:15.5px; left:8px; width:22px; height:7px; background:#fff; }
+  .eyebrow { color:#E8A7A2; font-weight:bold; font-size:17px; letter-spacing:3px; }
+  h1 { color:#fff; font-size:58px; font-weight:bold; letter-spacing:-1px; margin-bottom:14px; white-space:nowrap; }
+  .sub { color:#C9CFDA; font-size:21px; line-height:1.4; }
+  .card { width:520px; margin-left:60px; }
+</style><link rel="stylesheet" href="card.css"></head>
+<body>
+  <div class="left">
+    <div class="brand"><div class="cross"></div><div class="eyebrow">HOME ASSISTANT CUSTOM INTEGRATION</div></div>
+    <h1>Swiss Transport</h1>
+    <div class="sub">Live departures for every stop in Switzerland, right on your dashboard.</div>
+  </div>
+  <div class="card">
+    <div class="meta"><span>Sonntag, 19.07.2026</span><span>22:24</span></div>
+    <div class="head"><span class="station">Olten</span><span class="type">ABFAHRTEN</span></div>
+    <table>
+      <tr><th class="col-badge"></th><th>Zeit</th><th>in</th><th>Nach</th><th>Gleis</th><th></th></tr>
+      <tr><td class="col-badge"><span class="badge b-ic">IC 6</span></td><td class="t-zeit">22:31</td><td class="t-in">7'</td><td>Basel SBB</td><td class="t-gleis">7</td><td class="hint">+1 Min</td></tr>
+      <tr><td class="col-badge"><span class="badge b-s">S 23</span></td><td class="t-zeit">22:38</td><td class="t-in">14'</td><td>Langenthal</td><td class="t-gleis">12</td><td></td></tr>
+      <tr><td class="col-badge"><span class="badge b-s">S 29</span></td><td class="t-zeit">22:44</td><td class="t-in">20'</td><td>Aarau</td><td class="t-gleis">3</td><td></td></tr>
+    </table>
+  </div>
+</body></html>

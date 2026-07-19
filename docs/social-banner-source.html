@@ -1,0 +1,54 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  * { margin:0; padding:0; }
+  body { width:1280px; height:640px; overflow:hidden;
+    font-family:"Liberation Sans", Arial, sans-serif;
+    background:
+      radial-gradient(900px 700px at 85% -10%, rgba(30,58,110,.55), transparent 60%),
+      radial-gradient(900px 700px at 0% 110%, rgba(120,25,20,.45), transparent 60%),
+      #0B0D12;
+    display:flex; align-items:center; }
+  .icon { width:340px; height:340px; margin-left:84px; flex:none;
+    filter: drop-shadow(0 24px 60px rgba(0,0,0,.65)); }
+  .text { margin-left:58px; width:730px; }
+  .eyebrow { color:#E8A7A2; font-weight:bold; font-size:24px; letter-spacing:3px; margin-bottom:18px; }
+  h1 { color:#fff; white-space:nowrap; font-size:62px; font-weight:bold; letter-spacing:-1px; margin-bottom:16px; }
+  .sub { color:#C9CFDA; font-size:26px; line-height:1.35; max-width:640px; margin-bottom:30px; }
+  .card { width:640px; }
+  .card .head { padding-top:14px; }
+</style><link rel="stylesheet" href="card.css"></head>
+<body>
+  <svg class="icon" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16294E"/><stop offset="1" stop-color="#0A1730"/>
+    </linearGradient></defs>
+    <rect width="256" height="256" rx="56" fill="url(#tile)"/>
+    <g transform="translate(64,44)">
+      <path d="M0 32 Q0 0 32 0 L96 0 Q128 0 128 32 L128 128 Q128 140 116 140 L12 140 Q0 140 0 128 Z" fill="#FFFFFF"/>
+      <path d="M14 34 Q14 14 34 14 L94 14 Q114 14 114 34 L114 56 L14 56 Z" fill="#0E1D3A"/>
+      <rect x="26" y="68" width="76" height="18" rx="4" fill="#F7A600"/>
+      <circle cx="26" cy="118" r="9" fill="#F7A600"/>
+      <circle cx="102" cy="118" r="9" fill="#F7A600"/>
+      <rect x="0" y="140" width="128" height="12" rx="6" fill="#DA291C"/>
+    </g>
+    <g stroke="#3A507C" stroke-width="8" stroke-linecap="round">
+      <line x1="58" y1="216" x2="86" y2="216"/><line x1="106" y1="216" x2="150" y2="216"/><line x1="170" y1="216" x2="198" y2="216"/>
+    </g>
+    <g transform="translate(168,28)">
+      <rect width="60" height="60" rx="14" fill="#DA291C"/>
+      <rect x="25" y="12" width="10" height="36" fill="#FFFFFF"/>
+      <rect x="12" y="25" width="36" height="10" fill="#FFFFFF"/>
+    </g>
+  </svg>
+  <div class="text">
+    <div class="eyebrow">HOME ASSISTANT CUSTOM INTEGRATION</div>
+    <h1>Swiss Transport</h1>
+    <div class="sub">Live departures for every stop in Switzerland, right on your dashboard.</div>
+    <div class="card">
+      <div class="head"><span class="station">Zürich HB</span><span class="type">ABFAHRTEN</span></div>
+      <table>
+        <tr><td class="col-badge"><span class="badge b-ic">IC 8</span></td><td class="t-zeit">22:46</td><td class="t-in">22'</td><td>Bern</td><td class="t-gleis">4</td><td class="hint">+1 Min</td></tr>
+        <tr><td class="col-badge"><span class="badge b-s">S 24</span></td><td class="t-zeit">22:27</td><td class="t-in">2'</td><td>Effretikon</td><td class="t-gleis">2</td><td></td></tr>
+      </table>
+    </div>
+  </div>
+</body></html>
