@@ -8,7 +8,7 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 
-from .const import CONF_ENTRY_TYPE, DOMAIN, ENTRY_TYPE_CONNECTION
+from .const import CONF_ENTRY_TYPE, CONTROLS_OWNER, DOMAIN, ENTRY_TYPE_CONNECTION
 from .coordinator import SwissConnectionCoordinator, SwissTransportCoordinator
 from .dashboard import async_remove_orphan_cards, async_remove_station_card
 from .frontend import async_register_card
@@ -17,7 +17,9 @@ _LOGGER = logging.getLogger(__name__)
 
 _ORPHAN_SWEEP_SCHEDULED = f"{DOMAIN}_orphan_sweep_scheduled"
 
-PLATFORMS = ["sensor"]
+# datetime + select provide the single, dashboard-wide time/mode controls;
+# their platforms create one entity each (guarded by CONTROLS_OWNER).
+PLATFORMS = ["sensor", "datetime", "select"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -69,5 +71,9 @@ async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> Non
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        hass.data[DOMAIN].pop(entry.entry_id, None)
+        # If this entry owned the shared controls, release ownership so another
+        # entry recreates them on its next reload / the next restart.
+        if hass.data.get(CONTROLS_OWNER) == entry.entry_id:
+            hass.data.pop(CONTROLS_OWNER, None)
     return unloaded

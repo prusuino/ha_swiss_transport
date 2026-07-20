@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Swiss Transport",
-        "description": "Wähle, was hinzugefügt werden soll: eine Abfahrtstafel einer Haltestelle, oder eine gespeicherte Verbindung (von → nach) — z.B. dein täglicher Arbeitsweg.",
+        "description": "Wähle, was hinzugefügt werden soll: eine Ankunfts-/Abfahrtstafel einer Haltestelle, oder eine gespeicherte Verbindung (von → nach) — z.B. dein täglicher Arbeitsweg.",
         "data": {
           "mode": "Modus"
         }
@@ -52,6 +52,17 @@
     "error": {
       "cannot_connect": "transport.opendata.ch konnte nicht erreicht werden.",
       "no_stations_found": "Keine Haltestelle mit diesem Namen gefunden."
+    }
+  },
+  "entity": {
+    "select": {
+      "mode": {
+        "state": {
+          "live": "Live",
+          "depart": "Abfahrt",
+          "arrive": "Ankunft"
+        }
+      }
     }
   },
   "options": {

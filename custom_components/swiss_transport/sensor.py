@@ -14,8 +14,10 @@ from homeassistant.util import slugify
 
 from .const import (
     CONF_ENTRY_TYPE,
+    CONF_FROM_ID,
     CONF_FROM_NAME,
     CONF_STATION_NAME,
+    CONF_TO_ID,
     CONF_TO_NAME,
     DOMAIN,
     ENTRY_TYPE_CONNECTION,
@@ -148,6 +150,10 @@ class SwissConnectionSensor(CoordinatorEntity[SwissConnectionCoordinator], Senso
         return {
             "from_name": data.get("from_name") or self._entry.data.get(CONF_FROM_NAME),
             "to_name": data.get("to_name") or self._entry.data.get(CONF_TO_NAME),
+            # Station IDs let the bundled card query the timetable for a chosen
+            # time directly (global date/time selection on the dashboard).
+            "from_id": self._entry.data.get(CONF_FROM_ID),
+            "to_id": self._entry.data.get(CONF_TO_ID),
             "connection_count": len(cons),
             "connections": cons,
         }

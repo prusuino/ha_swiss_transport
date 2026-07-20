@@ -345,21 +345,40 @@ def _parse_connection(con: dict) -> dict | None:
     if not dep_ts:
         return None
     dep_delay = frm.get("delay")
+    # Break the journey into legs (skip walking sections), keeping the from/to
+    # station names and platforms of each ridden train.
     legs = []
     for sec in con.get("sections") or []:
         journey = sec.get("journey")
         if not journey:
             continue  # walking section
+        cat = (journey.get("category") or "").strip()
+        num = (journey.get("number") or "").strip()
+        line = f"{cat}{num}" if num and not str(num).isdigit() else (cat or num or "")
+        sec_dep = sec.get("departure") or {}
+        sec_arr = sec.get("arrival") or {}
         legs.append(
             {
-                "line": f"{(journey.get('category') or '').strip()}{(journey.get('number') or '').strip()}"
-                if journey.get("number") and not str(journey.get("number")).isdigit()
-                else (journey.get("category") or "").strip() or (journey.get("number") or ""),
-                "category": (journey.get("category") or "").strip(),
-                "number": (journey.get("number") or "").strip(),
+                "line": line,
+                "category": cat,
+                "number": num,
                 "to": journey.get("to"),
+                "from_name": (sec_dep.get("station") or {}).get("name"),
+                "from_platform": sec_dep.get("platform"),
+                "to_name": (sec_arr.get("station") or {}).get("name"),
+                "to_platform": sec_arr.get("platform"),
             }
         )
+    # Transfer points: where one leg ends and the next begins — the station to
+    # change at, with the arrival and onward-departure platforms.
+    changes = [
+        {
+            "station": legs[i]["to_name"],
+            "arr_platform": legs[i]["to_platform"],
+            "dep_platform": legs[i + 1]["from_platform"],
+        }
+        for i in range(len(legs) - 1)
+    ]
     return {
         "departure": frm.get("departure"),
         "departure_ts": int(dep_ts),
@@ -371,6 +390,8 @@ def _parse_connection(con: dict) -> dict | None:
         "duration_min": _duration_to_minutes(con.get("duration")),
         "transfers": con.get("transfers"),
         "products": con.get("products") or [],
+        "legs": legs,
+        "changes": changes,
     }
 
 

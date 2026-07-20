@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Swiss Transport",
-        "description": "Choose what to add: a departure board of a station, or a saved connection (from → to) — e.g. your daily commute.",
+        "description": "Choose what to add: an arrival/departure board of a station, or a saved connection (from → to) — e.g. your daily commute.",
         "data": {
           "mode": "Mode"
         }
@@ -52,6 +52,17 @@
     "error": {
       "cannot_connect": "transport.opendata.ch could not be reached.",
       "no_stations_found": "No station found for this name."
+    }
+  },
+  "entity": {
+    "select": {
+      "mode": {
+        "state": {
+          "live": "Live",
+          "depart": "Departure",
+          "arrive": "Arrival"
+        }
+      }
     }
   },
   "options": {

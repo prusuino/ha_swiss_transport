@@ -24,10 +24,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "it": "Partenze",
     },
     "mode_station": {
-        "de": "Abfahrtstafel einer Haltestelle",
-        "en": "Departure board of a station",
-        "fr": "Tableau des départs d'un arrêt",
-        "it": "Tabellone partenze di una fermata",
+        "de": "Ankunfts-/Abfahrtstafel einer Haltestelle",
+        "en": "Arrival/departure board of a station",
+        "fr": "Tableau des arrivées/départs d'un arrêt",
+        "it": "Tabellone arrivi/partenze di una fermata",
     },
     "mode_connection": {
         "de": "Verbindung (von → nach)",
@@ -52,6 +52,30 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Departures",
         "fr": "Départs TP",
         "it": "Partenze TP",
+    },
+    "controls_device_name": {
+        "de": "ÖV Dashboard-Steuerung",
+        "en": "Departures dashboard controls",
+        "fr": "Commandes du tableau de bord",
+        "it": "Controlli del cruscotto",
+    },
+    "control_time_name": {
+        "de": "ÖV Zeitpunkt",
+        "en": "Timetable moment",
+        "fr": "Moment horaire",
+        "it": "Momento orario",
+    },
+    "control_mode_name": {
+        "de": "ÖV Modus",
+        "en": "Timetable mode",
+        "fr": "Mode horaire",
+        "it": "Modalità orario",
+    },
+    "control_card_title": {
+        "de": "Zeitpunkt & Modus",
+        "en": "Time & mode",
+        "fr": "Heure et mode",
+        "it": "Ora e modalità",
     },
     "mode_all": {
         "de": "Alle",

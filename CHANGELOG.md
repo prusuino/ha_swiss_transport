@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0 — 2026-07-20
+
+Timetable browsing (any date/time, departures or arrivals) and connection details.
+
+- **Timetable browsing** — two new global helper entities, `datetime.swiss_transport_time` and `select.swiss_transport_mode` (`live` / `depart` / `arrive`), let every card show the board for **any date and time** instead of only the live view. A new **`swiss-transport-controls-card`** (Live / Departure / Arrival toggle + date/time picker) is added to the top of the auto-created dashboard and switches all its cards at once; manually placed cards follow via the new `datetime_entity`/`mode_entity` card options. Timetable data is fetched by the browser directly from transport.opendata.ch; in timetable mode the planned schedule is shown (no real-time enrichment) with a "Timetable: …" banner.
+- **Arrivals board** — in arrival mode station boards flip to an arrivals view: label "Ankünfte"/"Arrivals" and the direction column switches from *Nach/To* to *Von/From*, showing where each service comes from. Connection cards interpret the selected time as the latest arrival.
+- **Connection card: platforms & transfers** — platform columns for both departure and arrival (hidden when empty, as on the station board), plus a transfer line per connection: the change station with its arrival → onward platform.
+- **New sensor attributes**: connection entries gain `changes` (transfer stations with platforms); the connection sensor exposes the from/to station ids.
+
 ## 1.1.0 — 2026-07-19
 
 Optional real-time enrichment.

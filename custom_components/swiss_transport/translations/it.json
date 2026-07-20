@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Swiss Transport",
-        "description": "Scegli cosa aggiungere: un tabellone delle partenze di una fermata, oppure un collegamento salvato (da → a) — ad es. il tuo tragitto quotidiano.",
+        "description": "Scegli cosa aggiungere: un tabellone arrivi/partenze di una fermata, oppure un collegamento salvato (da → a) — ad es. il tuo tragitto quotidiano.",
         "data": {
           "mode": "Modalità"
         }
@@ -52,6 +52,17 @@
     "error": {
       "cannot_connect": "Impossibile raggiungere transport.opendata.ch.",
       "no_stations_found": "Nessuna fermata trovata con questo nome."
+    }
+  },
+  "entity": {
+    "select": {
+      "mode": {
+        "state": {
+          "live": "Live",
+          "depart": "Partenza",
+          "arrive": "Arrivo"
+        }
+      }
     }
   },
   "options": {

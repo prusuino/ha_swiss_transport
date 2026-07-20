@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Swiss Transport",
-        "description": "Choisissez ce qu'il faut ajouter : un tableau des départs d'un arrêt, ou une liaison enregistrée (de → à) — p. ex. votre trajet quotidien.",
+        "description": "Choisissez ce qu'il faut ajouter : un tableau des arrivées/départs d'un arrêt, ou une liaison enregistrée (de → à) — p. ex. votre trajet quotidien.",
         "data": {
           "mode": "Mode"
         }
@@ -52,6 +52,17 @@
     "error": {
       "cannot_connect": "transport.opendata.ch n'a pas pu être atteint.",
       "no_stations_found": "Aucun arrêt trouvé pour ce nom."
+    }
+  },
+  "entity": {
+    "select": {
+      "mode": {
+        "state": {
+          "live": "Live",
+          "depart": "Départ",
+          "arrive": "Arrivée"
+        }
+      }
     }
   },
   "options": {

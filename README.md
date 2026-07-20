@@ -30,13 +30,13 @@ When you add the integration you first choose a **mode** — a departure board o
 
 | Entity | Type | Description |
 |---|---|---|
-| `sensor.swiss_transport_<from>_<to>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, delay, `duration_min`, `transfers`, and the `products`/lines used), `connection_count`, from/to names. |
+| `sensor.swiss_transport_<from>_<to>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, delay, `duration_min`, `transfers`, the `products`/lines used, and `changes` — the transfer stations with arrival → onward platform), `connection_count`, from/to names and station ids. |
 
 Data refreshes about every 90 seconds.
 
 ## Bundled Lovelace cards
 
-The integration ships two self-registering cards (no manual resource setup), both with a visual editor:
+The integration ships three self-registering cards (no manual resource setup), all with a visual editor:
 
 **`swiss-transport-card`** — a real departure board, laid out like a station display: **symbol · time · countdown · destination · platform · info**, with a live date/time bar on top and an "Abfahrten" label. Colored **line badges** matching the Swiss product scheme (S-Bahn white chip, IC/IR family red, tram/bus/ship/cableway in their mode color) with a transport-mode icon. The platform column is dropped for bus/tram stops; delays show in red. When the optional [real-time source](#real-time-optional) is enabled, cancelled departures are struck through and marked, a disruption banner appears, and an occupancy column is shown when data is available.
 
@@ -50,14 +50,24 @@ show_type: true       # optional, show the "Departures" label
 show_occupancy: true  # optional, show the occupancy column (real-time only)
 show_alerts: true     # optional, show the disruption banner (real-time only)
 max_alerts: 3         # optional, disruptions shown before "+N more" (0 = all)
+datetime_entity: datetime.swiss_transport_time  # optional, follow timetable browsing
+mode_entity: select.swiss_transport_mode        # optional, follow timetable browsing
 ```
 
-**`swiss-transport-connection-card`** — a board for a saved route: **departure · countdown · line(s) · arrival · duration/transfers**, with the same date/time bar and a "Verbindung" label.
+**`swiss-transport-connection-card`** — a board for a saved route: **departure · platform · countdown · line(s) · arrival · platform · duration/transfers**, with the same date/time bar and a "Verbindung" label. Transfers are listed per connection with the change station and its arrival → onward platform.
 
 ```yaml
 type: custom:swiss-transport-connection-card
 entity: sensor.swiss_transport_<from>_<to>
 title: Olten → Zürich HB   # optional
+datetime_entity: datetime.swiss_transport_time  # optional, follow timetable browsing
+mode_entity: select.swiss_transport_mode        # optional, follow timetable browsing
+```
+
+**`swiss-transport-controls-card`** — the [timetable browsing](#timetable-browsing-optional) selector bar: a **Live / Departure / Arrival** toggle plus a date/time picker. It is added automatically to the top of the auto-created dashboard, and you can place it on any other dashboard yourself:
+
+```yaml
+type: custom:swiss-transport-controls-card
 ```
 
 Both the date/time bar and the type label can be toggled off in the visual editor.
@@ -65,6 +75,25 @@ Both the date/time bar and the type label can be toggled off in the visual edito
 ## Options
 
 Via the integration's Configure dialog you can change the **number of departures/connections**, and for a station board restrict the **transport types** shown (train / tram / bus / ship / cableway). Changes apply immediately.
+
+## Timetable browsing (optional)
+
+Every board can be switched from the live view to **any date and time** — e.g. "which trains leave tomorrow at 07:00?" or "what arrives before my meeting?". The integration creates two global helper entities for this:
+
+| Entity | Purpose |
+|---|---|
+| `datetime.swiss_transport_time` | The date/time to browse |
+| `select.swiss_transport_mode` | `live` (default), `depart` (departures at the selected time) or `arrive` (**arrivals** by the selected time) |
+
+The auto-created dashboard gets a selector bar (`swiss-transport-controls-card`) at the top; changing it switches **all** cards on the dashboard at once. Cards you added manually follow along as soon as their `datetime_entity`/`mode_entity` options point at the two helpers (visual editor: "Date/time entity" / "Mode entity").
+
+What the cards show:
+
+- **Departure mode** — the station board / connections from the selected time, with a blue "Timetable: …" banner.
+- **Arrival mode** — station boards flip to an **arrivals board**: the label changes to "Ankünfte"/"Arrivals" and the direction column changes from *Nach/To* to *Von/From*, showing where each service comes from. Connection cards interpret the selected time as the **latest arrival**.
+- **Live** — back to the normal live board.
+
+Timetable data is fetched by your browser directly from transport.opendata.ch. In timetable mode boards show the planned schedule only — real-time delays, cancellations and disruption messages apply to the live view.
 
 ## Real-time (optional)
 

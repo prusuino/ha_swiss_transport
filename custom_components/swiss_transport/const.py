@@ -53,3 +53,17 @@ TRANSPORT_TYPES = [
     "ship",
     "cableway",
 ]
+
+# Global dashboard time controls — a single datetime + mode selector that every
+# card can follow, letting you look up the timetable for any moment (and as a
+# departure or arrival time). Created once, owned by the first-loaded entry.
+CONTROL_TIME_UNIQUE = f"{DOMAIN}_time"
+CONTROL_MODE_UNIQUE = f"{DOMAIN}_mode"
+TIME_ENTITY_ID = "datetime.swiss_transport_time"
+MODE_ENTITY_ID = "select.swiss_transport_mode"
+CONTROLS_OWNER = f"{DOMAIN}_controls_owner"
+
+MODE_LIVE = "live"        # live board / next connections, now (with real-time)
+MODE_DEPART = "depart"    # timetable departing at the selected time
+MODE_ARRIVE = "arrive"    # timetable arriving by the selected time
+MODES = [MODE_LIVE, MODE_DEPART, MODE_ARRIVE]
