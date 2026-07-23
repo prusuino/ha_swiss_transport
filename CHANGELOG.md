@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1 — 2026-07-24
+
+Fixes "too many requests" (HTTP 429) from transport.opendata.ch.
+
+- **Connection polling slowed to 5 minutes** (station boards keep their 90 s cadence). The API allows only 1000 connection queries per day — the previous 90 s poll used 960 of those for a single saved route, so a second route exhausted the quota by midday.
+- **Automatic backoff on HTTP 429** — when the daily quota is exhausted, the affected entry pauses for 30 minutes instead of hammering the API, and resumes its normal cadence with the next successful update.
+
 ## 1.2.0 — 2026-07-20
 
 Timetable browsing (any date/time, departures or arrivals) and connection details.

@@ -32,7 +32,7 @@ When you add the integration you first choose a **mode** — a departure board o
 |---|---|---|
 | `sensor.swiss_transport_<from>_<to>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, delay, `duration_min`, `transfers`, the `products`/lines used, and `changes` — the transfer stations with arrival → onward platform), `connection_count`, from/to names and station ids. |
 
-Data refreshes about every 90 seconds.
+Station boards refresh about every 90 seconds. Saved connections refresh every 5 minutes — the transport.opendata.ch API allows only 1000 connection queries per day, and the slower cadence keeps several saved routes comfortably within that quota. If the API ever answers with "too many requests" (HTTP 429), the affected entry pauses for 30 minutes and then resumes automatically.
 
 ## Bundled Lovelace cards
 
@@ -156,7 +156,7 @@ Entity names and card labels follow your Home Assistant language — German, Eng
 ## Notes
 
 - Only relevant for stops within Switzerland (and directly connected cross-border stations covered by the Swiss timetable).
-- transport.opendata.ch is a free community service with rate limits — the integration polls conservatively (~90 s). Without the optional real-time source, delays depend on that feed's own reporting and cancellations are not shown.
+- transport.opendata.ch is a free community service with daily rate limits (1000 connection queries, 10080 station board queries per day) — the integration polls conservatively (station boards ~90 s, saved connections ~5 min) and backs off automatically after an HTTP 429. Note that the cards' timetable-browsing mode queries the API directly from your browser and counts towards the same per-IP quota. Without the optional real-time source, delays depend on that feed's own reporting and cancellations are not shown.
 - Unofficial; not affiliated with Opendata.ch, search.ch, opentransportdata.swiss, OpenStreetMap, or any transport operator.
 
 ## Data source & license
