@@ -8,6 +8,15 @@ API_BASE = "https://transport.opendata.ch/v1"
 # is still useful at this cadence because it shows the next several
 # departures, not just one.
 UPDATE_INTERVAL_SECONDS = 90
+# /connections is quota-limited to 1000 requests per day by
+# transport.opendata.ch — a 90 s poll (960 calls/day) exhausts that with a
+# single saved route. 300 s keeps even three routes comfortably below the
+# quota (288 calls/day each). /stationboard allows 10080/day, so departure
+# boards keep the fast 90 s cadence.
+CONNECTION_UPDATE_INTERVAL_SECONDS = 300
+# Once the API answers HTTP 429 the daily quota is exhausted — every further
+# poll is a wasted request. Back off this long, then probe again.
+RATE_LIMIT_BACKOFF_SECONDS = 1800
 FETCH_TIMEOUT_SECONDS = 30
 
 # How many upcoming departures to fetch/show by default.

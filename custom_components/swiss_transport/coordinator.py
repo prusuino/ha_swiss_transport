@@ -20,11 +20,13 @@ from .const import (
     CONF_OJP_TOKEN,
     CONF_STATION_ID,
     CONF_TRANSPORTATIONS,
+    CONNECTION_UPDATE_INTERVAL_SECONDS,
     DEFAULT_LIMIT,
     DOMAIN,
     FETCH_TIMEOUT_SECONDS,
     OJP_ENDPOINT,
     OJP_REQUESTOR_REF,
+    RATE_LIMIT_BACKOFF_SECONDS,
     UPDATE_INTERVAL_SECONDS,
 )
 
@@ -439,6 +441,29 @@ def _resolve_ojp_token(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
     return None
 
 
+def _apply_rate_limit_backoff(
+    coordinator: DataUpdateCoordinator, err: Exception, normal_seconds: int
+) -> None:
+    """Slow the poll right down after an HTTP 429.
+
+    transport.opendata.ch enforces daily quotas (1000 /connections calls,
+    10080 /stationboard calls). Once a quota is exhausted every further poll
+    is a wasted request, so back off; the coordinator restores its normal
+    cadence with the next successful update.
+    """
+    if getattr(err, "status", None) != 429:
+        coordinator.update_interval = timedelta(seconds=normal_seconds)
+        return
+    backoff = timedelta(seconds=RATE_LIMIT_BACKOFF_SECONDS)
+    if coordinator.update_interval != backoff:
+        _LOGGER.warning(
+            "transport.opendata.ch rate limit hit (HTTP 429) — daily quota "
+            "exhausted, pausing polling for %d minutes",
+            RATE_LIMIT_BACKOFF_SECONDS // 60,
+        )
+    coordinator.update_interval = backoff
+
+
 class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
     """Fetches the departure board for one configured station."""
 
@@ -464,7 +489,9 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
                 self.hass, data[CONF_STATION_ID], limit, transportations
             )
         except Exception as err:
+            _apply_rate_limit_backoff(self, err, UPDATE_INTERVAL_SECONDS)
             raise UpdateFailed(f"transport.opendata.ch unreachable: {err}") from err
+        self.update_interval = timedelta(seconds=UPDATE_INTERVAL_SECONDS)
 
         # Optional real-time enrichment (opentransportdata.swiss OJP). Strictly
         # best-effort: any failure leaves the opendata.ch board untouched.
@@ -497,7 +524,7 @@ class SwissConnectionCoordinator(DataUpdateCoordinator[dict]):
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS),
+            update_interval=timedelta(seconds=CONNECTION_UPDATE_INTERVAL_SECONDS),
         )
         self._entry = entry
 
@@ -512,8 +539,11 @@ class SwissConnectionCoordinator(DataUpdateCoordinator[dict]):
         data = self._entry.data
         limit = self._entry.options.get(CONF_LIMIT, data.get(CONF_LIMIT, DEFAULT_CONNECTION_LIMIT))
         try:
-            return await async_fetch_connections(
+            result = await async_fetch_connections(
                 self.hass, data[CONF_FROM_ID], data[CONF_TO_ID], limit
             )
         except Exception as err:
+            _apply_rate_limit_backoff(self, err, CONNECTION_UPDATE_INTERVAL_SECONDS)
             raise UpdateFailed(f"transport.opendata.ch unreachable: {err}") from err
+        self.update_interval = timedelta(seconds=CONNECTION_UPDATE_INTERVAL_SECONDS)
+        return result
