@@ -2,7 +2,7 @@
 
 ![Swiss Transport](docs/readme-header.png)
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 <a href="https://www.buymeacoffee.com/prusuino"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="20"></a>
 
@@ -31,6 +31,8 @@ When you add the integration you first choose a **mode** — a departure board o
 | Entity | Type | Description |
 |---|---|---|
 | `sensor.swiss_transport_<from>_<to>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, delay, `duration_min`, `transfers`, the `products`/lines used, and `changes` — the transfer stations with arrival → onward platform), `connection_count`, from/to names and station ids. |
+
+`<station>`, `<from>` and `<to>` are the stop names as the timetable API returns them, slugified: the board of Zürich HB is `sensor.swiss_transport_zurich_hb`, the connection Olten → Zürich HB is `sensor.swiss_transport_olten_zurich_hb`. The integration sets these object ids itself when an entity is first created, so they do not depend on your Home Assistant language — only the entity's displayed name ("Departures" / "Abfahrten") is localized. Like any entity, they can be renamed in the entity settings afterwards.
 
 Station boards refresh about every 90 seconds. Saved connections refresh every 5 minutes — the transport.opendata.ch API allows only 1000 connection queries per day, and the slower cadence keeps several saved routes comfortably within that quota. If the API ever answers with "too many requests" (HTTP 429), the affected entry pauses for 30 minutes and then resumes automatically.
 
@@ -127,7 +129,7 @@ That view is regenerated like the full dashboard is, so new config entries still
 
 ### 2b. Or build the cards yourself
 
-Take the YAML blocks above and place the cards on any dashboard you like — the strategy is a convenience, not a requirement. Replace the entity IDs with your own; they follow your Home Assistant language.
+Take the YAML blocks above and place the cards on any dashboard you like — the strategy is a convenience, not a requirement. Replace the entity IDs with your own — they are built from the stop names (see [What it provides](#what-it-provides)), not from the localized entity name.
 
 > **After updating the integration:** the card file is served without cache headers, so a browser reload picks up the new version and your resource URL never has to change. If a new card feature still does not show up, do a hard reload (Ctrl+F5 / Cmd+Shift+R).
 
@@ -137,7 +139,7 @@ Via the integration's Configure dialog you can change the **number of departures
 
 ## Timetable browsing (optional)
 
-Every board can be switched from the live view to **any date and time** — e.g. "which trains leave tomorrow at 07:00?" or "what arrives before my meeting?". The integration creates two global helper entities for this:
+Every board can be switched from the live view to **any date and time** — e.g. "which trains leave tomorrow at 07:00?" or "what arrives before my meeting?". The integration creates two helper entities for this — once, shared by every station board and saved connection you add (a second entry does not get its own pair), with these fixed entity ids:
 
 | Entity | Purpose |
 |---|---|
@@ -191,9 +193,13 @@ Entity names and card labels follow your Home Assistant language — German, Eng
 
 ### HACS (recommended)
 
-1. In HACS, go to **Integrations → ⋮ → Custom repositories**, add this repository URL with category **Integration**.
-2. Search for **"Swiss Transport"** and install.
-3. Restart Home Assistant.
+1. Open **HACS**, search for **"Swiss Transport"** and download it — or use the button, which opens the integration directly in your HACS:
+
+   [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=prusuino&repository=ha_swiss_transport&category=integration)
+
+2. Restart Home Assistant.
+
+Until the integration shows up in the HACS search, the button above adds it as a custom repository.
 
 ### Manual
 
