@@ -91,6 +91,40 @@ strategy:
 views: []
 ```
 
+### Adjusting the strategy
+
+A strategy dashboard has no card editor — the layout is generated fresh on every load. You still have two ways to shape it without giving that up:
+
+**Options.** Anything you add under `strategy:` is passed to the recipe:
+
+```yaml
+strategy:
+  type: custom:swiss-transport
+  title: My title
+  max_columns: 3
+views: []
+```
+
+| Option | Effect |
+|---|---|
+| `title` | dashboard title |
+| `max_columns` | column count of the generated section views |
+
+**One view inside your own dashboard.** Instead of a separate dashboard, let the strategy fill a single view of one you already have. Open your dashboard's raw configuration editor and add a view:
+
+```yaml
+views:
+  - title: Home
+    # ... your own cards ...
+  - title: Swiss Transport
+    strategy:
+      type: custom:swiss-transport
+```
+
+That view is regenerated like the full dashboard is, so new config entries still appear by themselves, while every other view stays yours to edit. The same options work here too.
+
+> **Take control** (⋮ menu) turns a strategy dashboard into a static one you can edit card by card — but it is one-way: the dashboard stops following your config entries from then on. Prefer the two approaches above.
+
 ### 2b. Or build the cards yourself
 
 Take the YAML blocks above and place the cards on any dashboard you like — the strategy is a convenience, not a requirement. Replace the entity IDs with your own; they follow your Home Assistant language.

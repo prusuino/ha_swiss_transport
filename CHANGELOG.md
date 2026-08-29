@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.1 — 2026-08-29
+
+- **New: strategy options.** Keys under `strategy:` are now honoured — `title`, `max_columns`. Unknown keys are ignored, so a typo cannot break the dashboard.
+- **New: view strategy.** Next to the dashboard strategy the card file now also registers `ll-strategy-view-...`, so a single view of your own dashboard can be filled by the strategy (`views: - strategy: {type: custom:...}`) while every other view stays hand-editable. Until now the only way to change anything was *Take control*, which permanently stops the dashboard from following your config entries.
+- No changes to the integration itself; only the bundled card file and the README.
+
 ## 1.3.0 — 2026-08-29
 
 The integration no longer creates or maintains a dashboard. A dashboard strategy replaces it.
