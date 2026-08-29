@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0 — 2026-08-29
+
+The integration no longer creates or maintains a dashboard. A dashboard strategy replaces it.
+
+- **Removed: the automatic dashboard.** Earlier versions created an "ÖV Abfahrten" / "Departures" dashboard on first setup, added a card for every station or connection, and removed those cards again when an entry was deleted. All of that wrote into Lovelace's storage — another component's configuration, which is not an integration's to manage. The code that did it is gone.
+- **Removed: automatic Lovelace resource registration.** The card file is still served by the integration at `/swiss_transport_files/swiss-transport-card.js`, but registering it as a dashboard resource is now a one-time manual step, documented in the README.
+- **New: dashboard strategy `custom:swiss-transport`.** It builds the same layout — the Live/Departure/Arrival selector bar on top, then one section per station board and saved connection — but in the browser at display time, writing nothing to your configuration. A station added later appears by itself, so the effect of the old auto-maintained dashboard is preserved without the storage writes. Set it up with an empty dashboard and `strategy: {type: custom:swiss-transport}`; see the README.
+- **Minimum Home Assistant version is now 2024.12.0** (was 2024.1.0). The integration already relied on APIs newer than the declared floor; this states the real requirement.
+- Added `translations/en.json` so the config and options flow are translated from the packaged translations like every other language.
+
+**Upgrading:** dashboards you already have are left exactly as they are — this release removes the code that would touch them, not the dashboards themselves. If you want the strategy instead, create a new dashboard for it and delete the old one yourself. The Lovelace resource that earlier versions registered for you keeps working; nothing needs to change there. One leftover remains in `.storage/swiss_transport.dashboard` — a small marker file the old code used to remember that it had already created the dashboard. It is never read again and can be deleted when Home Assistant is stopped, or simply left alone.
+
 ## 1.2.1 — 2026-07-24
 
 Fixes "too many requests" (HTTP 429) from transport.opendata.ch.

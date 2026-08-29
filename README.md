@@ -12,9 +12,9 @@ A Home Assistant custom integration for Swiss public transport, sourced from the
 - **Connections** — a saved route (from → to), e.g. your daily commute, showing the next departures with times, platforms, duration and transfers.
 - **Optional real-time** — plug in a free [opentransportdata.swiss](#real-time-optional) token for fresher delays, cancellations, platform changes, disruption messages and occupancy.
 
-Both come with a bundled Lovelace card styled like a station departure board, and an auto-generated dashboard.
+Both come with a bundled Lovelace card styled like a station departure board, plus a dashboard strategy that assembles a complete departures dashboard for you.
 
-![The auto-generated dashboard: two departure boards, a connection, and an empty stop](docs/dashboard-example.png)
+![A departures dashboard: two departure boards, a connection, and an empty stop](docs/dashboard-example.png)
 
 ## What it provides
 
@@ -36,7 +36,7 @@ Station boards refresh about every 90 seconds. Saved connections refresh every 5
 
 ## Bundled Lovelace cards
 
-The integration ships three self-registering cards (no manual resource setup), all with a visual editor:
+The integration ships three cards, all with a visual editor. It serves the card file but does not write to your dashboard configuration — [registering the resource](#1-register-the-card-resource-once) is a short, one-time step.
 
 **`swiss-transport-card`** — a real departure board, laid out like a station display: **symbol · time · countdown · destination · platform · info**, with a live date/time bar on top and an "Abfahrten" label. Colored **line badges** matching the Swiss product scheme (S-Bahn white chip, IC/IR family red, tram/bus/ship/cableway in their mode color) with a transport-mode icon. The platform column is dropped for bus/tram stops; delays show in red. When the optional [real-time source](#real-time-optional) is enabled, cancelled departures are struck through and marked, a disruption banner appears, and an occupancy column is shown when data is available.
 
@@ -64,13 +64,38 @@ datetime_entity: datetime.swiss_transport_time  # optional, follow timetable bro
 mode_entity: select.swiss_transport_mode        # optional, follow timetable browsing
 ```
 
-**`swiss-transport-controls-card`** — the [timetable browsing](#timetable-browsing-optional) selector bar: a **Live / Departure / Arrival** toggle plus a date/time picker. It is added automatically to the top of the auto-created dashboard, and you can place it on any other dashboard yourself:
+**`swiss-transport-controls-card`** — the [timetable browsing](#timetable-browsing-optional) selector bar: a **Live / Departure / Arrival** toggle plus a date/time picker. The [dashboard strategy](#2a-ready-made-dashboard-recommended) puts it at the top, and you can place it on any dashboard yourself:
 
 ```yaml
 type: custom:swiss-transport-controls-card
 ```
 
 Both the date/time bar and the type label can be toggled off in the visual editor.
+
+### 1. Register the card resource (once)
+
+1. Go to **Settings → Dashboards → ⋮ (top right) → Resources → + Add resource**. The *Resources* entry is only shown when **Advanced mode** is enabled in your user profile (click your name at the bottom of the sidebar).
+2. URL: `/swiss_transport_files/swiss-transport-card.js`
+3. Resource type: **JavaScript module**
+4. Reload the page.
+
+### 2a. Ready-made dashboard (recommended)
+
+The integration includes a **dashboard strategy** that builds the departures dashboard at display time: the selector bar on top, then one section per station board and saved connection. Nothing is written to your configuration, and a station you add later appears by itself — no dashboard editing.
+
+Create a new empty dashboard (**Settings → Dashboards → + Add dashboard**; the strategy also appears in that dialog), then open **⋮ → Raw configuration editor** and replace its contents with:
+
+```yaml
+strategy:
+  type: custom:swiss-transport
+views: []
+```
+
+### 2b. Or build the cards yourself
+
+Take the YAML blocks above and place the cards on any dashboard you like — the strategy is a convenience, not a requirement. Replace the entity IDs with your own; they follow your Home Assistant language.
+
+> **After updating the integration:** the card file is served without cache headers, so a browser reload picks up the new version and your resource URL never has to change. If a new card feature still does not show up, do a hard reload (Ctrl+F5 / Cmd+Shift+R).
 
 ## Options
 
@@ -85,7 +110,7 @@ Every board can be switched from the live view to **any date and time** — e.g.
 | `datetime.swiss_transport_time` | The date/time to browse |
 | `select.swiss_transport_mode` | `live` (default), `depart` (departures at the selected time) or `arrive` (**arrivals** by the selected time) |
 
-The auto-created dashboard gets a selector bar (`swiss-transport-controls-card`) at the top; changing it switches **all** cards on the dashboard at once. Cards you added manually follow along as soon as their `datetime_entity`/`mode_entity` options point at the two helpers (visual editor: "Date/time entity" / "Mode entity").
+The dashboard strategy puts a selector bar (`swiss-transport-controls-card`) at the top; changing it switches **all** cards on the dashboard at once. Cards you added manually follow along as soon as their `datetime_entity`/`mode_entity` options point at the two helpers (visual editor: "Date/time entity" / "Mode entity").
 
 What the cards show:
 
@@ -123,10 +148,6 @@ The current OJP 2.0 plan allows 20 000 calls/day and 50 calls/minute — far mor
 Paste the token into the **Real-time token** field when adding a station, or later via the station's **Configure** dialog. Entered once, it enriches **every** station board. Leave it empty to use transport.opendata.ch only.
 
 > Note: the token is a credential — treat it like a password. It is stored in Home Assistant like any other integration secret and never leaves your instance except in requests to opentransportdata.swiss.
-
-## Automatic dashboard
-
-On first setup, the integration automatically creates an **"ÖV Abfahrten" / "Departures"** dashboard (localized) and adds the matching card for every station or connection you configure. Add another one and its card appears there automatically; remove it and its card is cleaned up. It's created only once — if you customize or delete the dashboard yourself, the integration won't touch or re-create it.
 
 ## Language
 

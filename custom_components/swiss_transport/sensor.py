@@ -2,7 +2,6 @@
 full list of upcoming departures for the station."""
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
@@ -23,11 +22,9 @@ from .const import (
     ENTRY_TYPE_CONNECTION,
 )
 from .coordinator import SwissConnectionCoordinator, SwissTransportCoordinator
-from .dashboard import async_add_station_card
 from .device import connection_device_info, device_info
 from .localization import t
 
-_LOGGER = logging.getLogger(__name__)
 ATTRIBUTION = "Data: transport.opendata.ch (search.ch)"
 # The station board additionally resolves the address via OpenStreetMap and,
 # when a token is configured, real-time data via opentransportdata.swiss.
@@ -46,14 +43,6 @@ async def async_setup_entry(
     else:
         sensor = SwissTransportDeparturesSensor(hass, coordinator, entry)
     async_add_entities([sensor])
-
-    async def _add_card(hass: HomeAssistant, entry: ConfigEntry, entity_id: str) -> None:
-        try:
-            await async_add_station_card(hass, entry, entity_id)
-        except Exception:  # noqa: BLE001 - dashboard setup must never break the sensor
-            _LOGGER.exception("Automatic dashboard card setup failed")
-
-    hass.async_create_task(_add_card(hass, entry, sensor.entity_id))
 
 
 class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator], SensorEntity):

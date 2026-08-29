@@ -1,4 +1,4 @@
-"""Runtime string localization (entity names, dashboard content).
+"""Runtime string localization (entity and device names).
 
 Home Assistant's built-in translation system only covers config/options flow
 text. Entity names and card content are set by this integration's code, so we
@@ -47,12 +47,6 @@ STRINGS: dict[str, dict[str, str]] = {
         "fr": "Liaisons",
         "it": "Collegamenti",
     },
-    "dashboard_title": {
-        "de": "ÖV Abfahrten",
-        "en": "Departures",
-        "fr": "Départs TP",
-        "it": "Partenze TP",
-    },
     "controls_device_name": {
         "de": "ÖV Dashboard-Steuerung",
         "en": "Departures dashboard controls",
@@ -70,12 +64,6 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Timetable mode",
         "fr": "Mode horaire",
         "it": "Modalità orario",
-    },
-    "control_card_title": {
-        "de": "Zeitpunkt & Modus",
-        "en": "Time & mode",
-        "fr": "Heure et mode",
-        "it": "Ora e modalità",
     },
     "mode_all": {
         "de": "Alle",
