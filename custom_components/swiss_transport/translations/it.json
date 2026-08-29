@@ -50,7 +50,8 @@
       "already_configured": "Questa fermata o questo collegamento è già configurato."
     },
     "error": {
-      "cannot_connect": "Impossibile raggiungere transport.opendata.ch.",
+      "cannot_connect": "Impossibile raggiungere transport.opendata.ch o opentransportdata.swiss.",
+      "invalid_auth": "opentransportdata.swiss ha rifiutato il token in tempo reale (HTTP 401/403). Controlla il token nel suo API Manager o lascia il campo vuoto.",
       "no_stations_found": "Nessuna fermata trovata con questo nome."
     }
   },
@@ -78,6 +79,10 @@
           "ojp_token": "Token API OJP 2.0 facoltativo di opentransportdata.swiss per ritardi più aggiornati, soppressioni, cambi di binario e occupazione. Inserito una volta, arricchisce ogni tabellone. Lascia vuoto per usare solo opendata.ch."
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Impossibile raggiungere opentransportdata.swiss, quindi il token non è stato verificato. Riprova più tardi.",
+      "invalid_auth": "opentransportdata.swiss ha rifiutato il token in tempo reale (HTTP 401/403). Controlla il token nel suo API Manager o lascia il campo vuoto."
     }
   }
 }

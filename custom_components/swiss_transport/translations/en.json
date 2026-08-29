@@ -50,7 +50,8 @@
       "already_configured": "This station or connection is already configured."
     },
     "error": {
-      "cannot_connect": "transport.opendata.ch could not be reached.",
+      "cannot_connect": "transport.opendata.ch or opentransportdata.swiss could not be reached.",
+      "invalid_auth": "opentransportdata.swiss rejected the real-time token (HTTP 401/403). Check the token in its API Manager, or leave the field empty.",
       "no_stations_found": "No station found for this name."
     }
   },
@@ -78,6 +79,10 @@
           "ojp_token": "Optional OJP 2.0 API token from opentransportdata.swiss for fresher delays, cancellations, platform changes and occupancy. Entered once, it enriches every station board. Leave empty to use opendata.ch only."
         }
       }
+    },
+    "error": {
+      "cannot_connect": "opentransportdata.swiss could not be reached, so the token could not be checked. Try again later.",
+      "invalid_auth": "opentransportdata.swiss rejected the real-time token (HTTP 401/403). Check the token in its API Manager, or leave the field empty."
     }
   }
 }

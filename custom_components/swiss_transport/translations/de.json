@@ -50,7 +50,8 @@
       "already_configured": "Diese Haltestelle oder Verbindung ist bereits konfiguriert."
     },
     "error": {
-      "cannot_connect": "transport.opendata.ch konnte nicht erreicht werden.",
+      "cannot_connect": "transport.opendata.ch oder opentransportdata.swiss konnte nicht erreicht werden.",
+      "invalid_auth": "opentransportdata.swiss hat den Echtzeit-Token abgelehnt (HTTP 401/403). Prüfe den Token im dortigen API Manager oder lass das Feld leer.",
       "no_stations_found": "Keine Haltestelle mit diesem Namen gefunden."
     }
   },
@@ -78,6 +79,10 @@
           "ojp_token": "Optionaler OJP-2.0-Token von opentransportdata.swiss für frischere Verspätungen, Ausfälle, Gleiswechsel und Auslastung. Einmal eingegeben, reichert er jede Abfahrtstafel an. Leer lassen = nur opendata.ch."
         }
       }
+    },
+    "error": {
+      "cannot_connect": "opentransportdata.swiss konnte nicht erreicht werden, der Token konnte deshalb nicht geprüft werden. Versuche es später noch einmal.",
+      "invalid_auth": "opentransportdata.swiss hat den Echtzeit-Token abgelehnt (HTTP 401/403). Prüfe den Token im dortigen API Manager oder lass das Feld leer."
     }
   }
 }

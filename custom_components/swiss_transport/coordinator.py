@@ -276,11 +276,19 @@ def _parse_ojp_stationboard(xml_text: str) -> dict:
     return {"events": events, "alerts": alerts}
 
 
-async def async_fetch_ojp_stationboard(
-    hass: HomeAssistant, token: str, station_id: str, limit: int
-) -> dict:
-    """POST an OJP StopEventRequest and parse the response. Raises on failure;
-    callers treat enrichment as best-effort and fall back to opendata.ch."""
+class OjpAuthError(Exception):
+    """opentransportdata.swiss rejected the OJP bearer token (HTTP 401/403)."""
+
+    def __init__(self, status: int) -> None:
+        super().__init__(f"opentransportdata.swiss rejected the OJP token (HTTP {status})")
+        self.status = status
+
+
+async def _async_ojp_post(hass: HomeAssistant, token: str, station_id: str, limit: int) -> str:
+    """POST an OJP StopEventRequest and return the raw response body.
+
+    Raises OjpAuthError when the token is rejected (HTTP 401/403) and the
+    usual client errors for anything else."""
     session = async_get_clientsession(hass)
     headers = {
         "Authorization": f"Bearer {token}",
@@ -290,9 +298,27 @@ async def async_fetch_ojp_stationboard(
     async with session.post(
         OJP_ENDPOINT, data=body.encode("utf-8"), headers=headers, timeout=FETCH_TIMEOUT_SECONDS
     ) as resp:
+        if resp.status in (401, 403):
+            raise OjpAuthError(resp.status)
         resp.raise_for_status()
-        text = await resp.text()
-    return _parse_ojp_stationboard(text)
+        return await resp.text()
+
+
+async def async_fetch_ojp_stationboard(
+    hass: HomeAssistant, token: str, station_id: str, limit: int
+) -> dict:
+    """POST an OJP StopEventRequest and parse the response. Raises on failure
+    (OjpAuthError for a rejected token); callers treat enrichment as
+    best-effort and fall back to opendata.ch."""
+    return _parse_ojp_stationboard(await _async_ojp_post(hass, token, station_id, limit))
+
+
+async def async_validate_ojp_token(hass: HomeAssistant, token: str, station_id: str) -> None:
+    """Probe opentransportdata.swiss once with the token — the config and
+    options flows call this before storing it. Returns normally when the
+    token is accepted; raises OjpAuthError when it is rejected (HTTP 401/403)
+    and any other error when the endpoint cannot be reached."""
+    await _async_ojp_post(hass, token, station_id, 1)
 
 
 def _apply_ojp(board: dict, ojp: dict) -> None:
@@ -476,6 +502,9 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
         )
         self._entry = entry
         self._address: str | None = None  # resolved once, then cached
+        # True after the OJP token was rejected and the warning was logged;
+        # cleared as soon as the token is accepted again.
+        self._ojp_auth_failed = False
 
     async def _async_update_data(self) -> dict:
         data = self._entry.data
@@ -494,7 +523,9 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
         self.update_interval = timedelta(seconds=UPDATE_INTERVAL_SECONDS)
 
         # Optional real-time enrichment (opentransportdata.swiss OJP). Strictly
-        # best-effort: any failure leaves the opendata.ch board untouched.
+        # best-effort: any failure leaves the opendata.ch board untouched. A
+        # rejected token is the one failure that is not transient, so it is
+        # said once at WARNING level instead of disappearing into debug logs.
         token = _resolve_ojp_token(self.hass, self._entry)
         if token:
             try:
@@ -502,8 +533,21 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
                     self.hass, token, data[CONF_STATION_ID], limit
                 )
                 _apply_ojp(result, ojp)
+            except OjpAuthError as err:
+                if not self._ojp_auth_failed:
+                    _LOGGER.warning(
+                        "opentransportdata.swiss rejected the OJP real-time token "
+                        "(HTTP %s); station boards continue without real-time data "
+                        "until a valid token is configured",
+                        err.status,
+                    )
+                    self._ojp_auth_failed = True
             except Exception:  # noqa: BLE001 - enrichment must never break the board
                 _LOGGER.debug("OJP real-time enrichment failed", exc_info=True)
+            else:
+                if self._ojp_auth_failed:
+                    _LOGGER.info("opentransportdata.swiss accepts the OJP real-time token again")
+                    self._ojp_auth_failed = False
 
         # Resolve the station address once (best-effort). Retried on later
         # polls only until it succeeds, so a transient geocoder hiccup isn't

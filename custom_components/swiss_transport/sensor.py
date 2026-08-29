@@ -34,6 +34,16 @@ ATTRIBUTION_STATION = (
 ATTRIBUTION_OJP = "Real-time: opentransportdata.swiss (OJP)"
 
 
+def _suggested_entity_id(entry: ConfigEntry, *names: str) -> str:
+    """Object id suggested for a new entity: the stop name(s) plus a short tag
+    from the config entry, so two stops whose names slugify identically (the
+    railway station and the tram stop of the same place, say) do not collide
+    into a `_2` suffix. Only a suggestion — entities already in the registry
+    keep the ids they have."""
+    tag = slugify(entry.entry_id[-4:])
+    return f"sensor.swiss_transport_{slugify('_'.join(names))}_{tag}"
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -71,7 +81,7 @@ class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator
         self._attr_name = t("sensor_departures_name", hass)
         self._attr_unique_id = f"{entry.entry_id}_departures"
         self._attr_device_info = device_info(hass, entry)
-        self.entity_id = f"sensor.swiss_transport_{slugify(name)}"
+        self.entity_id = _suggested_entity_id(entry, name)
 
     @property
     def native_value(self):
@@ -123,7 +133,7 @@ class SwissConnectionSensor(CoordinatorEntity[SwissConnectionCoordinator], Senso
         self._attr_name = t("sensor_connection_name", hass)
         self._attr_unique_id = f"{entry.entry_id}_connections"
         self._attr_device_info = connection_device_info(hass, entry)
-        self.entity_id = f"sensor.swiss_transport_{slugify(f'{frm}_{to}')}"
+        self.entity_id = _suggested_entity_id(entry, frm, to)
 
     @property
     def native_value(self):

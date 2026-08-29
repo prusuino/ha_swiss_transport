@@ -50,7 +50,8 @@
       "already_configured": "Cet arrêt ou cette liaison est déjà configuré."
     },
     "error": {
-      "cannot_connect": "transport.opendata.ch n'a pas pu être atteint.",
+      "cannot_connect": "transport.opendata.ch ou opentransportdata.swiss n'a pas pu être atteint.",
+      "invalid_auth": "opentransportdata.swiss a refusé le jeton temps réel (HTTP 401/403). Vérifiez le jeton dans son API Manager ou laissez le champ vide.",
       "no_stations_found": "Aucun arrêt trouvé pour ce nom."
     }
   },
@@ -78,6 +79,10 @@
           "ojp_token": "Jeton d'API OJP 2.0 facultatif de opentransportdata.swiss pour des retards plus frais, les suppressions, les changements de voie et l'occupation. Saisi une fois, il enrichit chaque tableau des départs. Laissez vide pour n'utiliser que opendata.ch."
         }
       }
+    },
+    "error": {
+      "cannot_connect": "opentransportdata.swiss n'a pas pu être atteint, le jeton n'a donc pas pu être vérifié. Réessayez plus tard.",
+      "invalid_auth": "opentransportdata.swiss a refusé le jeton temps réel (HTTP 401/403). Vérifiez le jeton dans son API Manager ou laissez le champ vide."
     }
   }
 }

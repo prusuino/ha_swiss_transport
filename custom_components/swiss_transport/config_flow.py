@@ -46,7 +46,7 @@ from .const import (
     MAX_LIMIT,
     TRANSPORT_TYPES,
 )
-from .coordinator import async_search_stations
+from .coordinator import OjpAuthError, async_search_stations, async_validate_ojp_token
 from .localization import t, transport_type_label
 
 CONF_QUERY = "query"
@@ -75,6 +75,19 @@ def _effective_token(hass) -> str:
         if tok:
             return tok
     return ""
+
+
+async def _async_check_ojp_token(hass, token: str, station_id: str) -> dict[str, str]:
+    """Probe opentransportdata.swiss with the token before it is stored, so a
+    bad token is reported in the form instead of failing silently later.
+    Returns the form errors to show — empty when the token is accepted."""
+    try:
+        await async_validate_ojp_token(hass, token, station_id)
+    except OjpAuthError:
+        return {"base": "invalid_auth"}
+    except Exception:  # noqa: BLE001 - map to form error
+        return {"base": "cannot_connect"}
+    return {}
 
 
 def _apply_token_everywhere(hass, token: str, current_entry_id: str | None = None) -> None:
@@ -170,6 +183,7 @@ class SwissTransportConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="station", data_schema=schema, errors=errors)
 
     async def async_step_pick(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
             station = self._results.get(user_input[CONF_STATION_ID])
             if station is None:
@@ -178,21 +192,24 @@ class SwissTransportConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(f"station_{station['id']}")
             self._abort_if_unique_id_configured()
 
-            transportations = user_input.get(CONF_TRANSPORTATIONS) or []
-            data = {
-                CONF_ENTRY_TYPE: ENTRY_TYPE_STATION,
-                CONF_STATION_ID: station["id"],
-                CONF_STATION_NAME: station["name"],
-                CONF_LIMIT: int(user_input.get(CONF_LIMIT, DEFAULT_LIMIT)),
-                CONF_TRANSPORTATIONS: transportations,
-            }
             token = (user_input.get(CONF_OJP_TOKEN) or "").strip()
             if token:
-                data[CONF_OJP_TOKEN] = token
-            return self.async_create_entry(
-                title=t("device_name", self.hass, station=station["name"]),
-                data=data,
-            )
+                errors = await _async_check_ojp_token(self.hass, token, station["id"])
+            if not errors:
+                transportations = user_input.get(CONF_TRANSPORTATIONS) or []
+                data = {
+                    CONF_ENTRY_TYPE: ENTRY_TYPE_STATION,
+                    CONF_STATION_ID: station["id"],
+                    CONF_STATION_NAME: station["name"],
+                    CONF_LIMIT: int(user_input.get(CONF_LIMIT, DEFAULT_LIMIT)),
+                    CONF_TRANSPORTATIONS: transportations,
+                }
+                if token:
+                    data[CONF_OJP_TOKEN] = token
+                return self.async_create_entry(
+                    title=t("device_name", self.hass, station=station["name"]),
+                    data=data,
+                )
 
         options = [
             SelectOptionDict(value=s["id"], label=s["name"])
@@ -210,7 +227,7 @@ class SwissTransportConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_OJP_TOKEN, default=_effective_token(self.hass)): _token_selector(),
             }
         )
-        return self.async_show_form(step_id="pick", data_schema=schema)
+        return self.async_show_form(step_id="pick", data_schema=schema, errors=errors)
 
     # --- Connection mode: search origin, then destination ---
 
@@ -288,24 +305,36 @@ class SwissTransportConfigFlow(ConfigFlow, domain=DOMAIN):
 
 class SwissTransportOptionsFlow(OptionsFlow):
     """Adjust the number of results (and, for a station board, the transport
-    types shown)."""
+    types shown and the real-time token)."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         is_connection = self.config_entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_CONNECTION
         data = self.config_entry.data
         options = self.config_entry.options
+        errors: dict[str, str] = {}
 
         if user_input is not None:
-            new = {CONF_LIMIT: int(user_input.get(CONF_LIMIT, DEFAULT_LIMIT))}
+            # Start from the stored options so keys this form does not show —
+            # the OJP token synced into a connection entry — survive the save.
+            new = dict(options)
+            new[CONF_LIMIT] = int(user_input.get(CONF_LIMIT, DEFAULT_LIMIT))
             if not is_connection:
                 new[CONF_TRANSPORTATIONS] = user_input.get(CONF_TRANSPORTATIONS) or []
                 token = (user_input.get(CONF_OJP_TOKEN) or "").strip()
                 if token:
+                    errors = await _async_check_ojp_token(self.hass, token, data[CONF_STATION_ID])
                     new[CONF_OJP_TOKEN] = token
-                # The token is integration-wide: sync it to every other entry
-                # (and clean it out of .data) so it can be managed from here.
-                _apply_token_everywhere(self.hass, token, current_entry_id=self.config_entry.entry_id)
-            return self.async_create_entry(data=new)
+                else:
+                    new.pop(CONF_OJP_TOKEN, None)
+                if not errors:
+                    # The token is integration-wide: sync it to every other
+                    # entry (and clean it out of .data) so it can be managed
+                    # from here.
+                    _apply_token_everywhere(
+                        self.hass, token, current_entry_id=self.config_entry.entry_id
+                    )
+            if not errors:
+                return self.async_create_entry(data=new)
 
         default_limit = int(
             options.get(CONF_LIMIT, data.get(CONF_LIMIT, DEFAULT_CONNECTION_LIMIT if is_connection else DEFAULT_LIMIT))
@@ -326,4 +355,4 @@ class SwissTransportOptionsFlow(OptionsFlow):
             fields[
                 vol.Optional(CONF_OJP_TOKEN, default=_effective_token(self.hass))
             ] = _token_selector()
-        return self.async_show_form(step_id="init", data_schema=vol.Schema(fields))
+        return self.async_show_form(step_id="init", data_schema=vol.Schema(fields), errors=errors)

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.0 — 2026-08-29
+
+Hardening of the optional real-time token, and a small entity-id change for new entries.
+
+- **The real-time token is checked when you enter it.** The setup and Configure dialogs send one probe request to opentransportdata.swiss before the token is stored. A rejected token (HTTP 401/403) now shows up right in the form instead of being accepted and failing silently; if the service cannot be reached, the form says so and you can try again.
+- **A rejected token is logged, once.** Enrichment stays best-effort — a failing OJP request never breaks the board — but the first HTTP 401/403 is now logged at WARNING level with the status code instead of vanishing into debug output. The warning is not repeated until the token has been accepted again in between.
+- **New entities get a short tag in their entity id.** The object id suggested for a new station board or connection sensor now ends in the last four characters of its config entry, lower-cased — e.g. `sensor.swiss_transport_zurich_hb_k7q2` — so two stops whose names slugify to the same text no longer end up as `..._2`. Unique ids are unchanged, and **entities you already have keep their ids**; the tag only applies to entities created from now on. The README describes the new shape.
+- Fixed: saving a connection entry's Configure dialog dropped the copy of the real-time token that the integration keeps in every entry's options, breaking the single-source-of-truth rule the token sync relies on.
+- Fixed: if serving the bundled card file failed once during startup, the integration remembered that as done and the card stayed unavailable until the next restart. The next entry setup now retries.
+- SECURITY.md brought up to date: it now describes the optional opentransportdata.swiss token and the one-time Nominatim address lookup instead of claiming the integration uses no credentials.
+
+**Upgrading:** nothing to do. Existing entities keep their ids; an already configured token keeps working and is only re-checked when you save a dialog that contains it.
+
 ## 1.3.1 — 2026-08-29
 
 - **New: strategy options.** Keys under `strategy:` are now honoured — `title`, `max_columns`. Unknown keys are ignored, so a typo cannot break the dashboard.

@@ -33,10 +33,19 @@ async def async_serve_card(hass: HomeAssistant, version: str) -> None:
     """
     if hass.data.get(_REGISTERED_FLAG):
         return
+    # Claimed before the await so concurrent entry setups do not register
+    # twice; released again below if the registration does not go through,
+    # so the next entry setup retries instead of remembering a failure as done.
     hass.data[_REGISTERED_FLAG] = True
 
     card_path = Path(__file__).parent / "frontend" / CARD_FILENAME
-    await hass.http.async_register_static_paths(
-        [StaticPathConfig(CARD_URL_BASE, str(card_path), cache_headers=False)]
-    )
+    registered = False
+    try:
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(CARD_URL_BASE, str(card_path), cache_headers=False)]
+        )
+        registered = True
+    finally:
+        if not registered:
+            hass.data.pop(_REGISTERED_FLAG, None)
     _LOGGER.debug("Serving the bundled card at %s (version %s)", CARD_URL_BASE, version)

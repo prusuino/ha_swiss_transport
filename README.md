@@ -24,15 +24,15 @@ When you add the integration you first choose a **mode** — a departure board o
 
 | Entity | Type | Description |
 |---|---|---|
-| `sensor.swiss_transport_<station>` | Sensor | State = the next departure (timestamp). Attributes: `departures` (the full upcoming board — line, category, destination, platform, delay, operator, departure time, plus `cancelled`/`occupancy` when real-time is enabled), `departure_count`, station name, **address** (reverse-geocoded), coordinates, `realtime` (bool) and `alerts` (disruption messages, real-time only). |
+| `sensor.swiss_transport_<station>_<tag>` | Sensor | State = the next departure (timestamp). Attributes: `departures` (the full upcoming board — line, category, destination, platform, delay, operator, departure time, plus `cancelled`/`occupancy` when real-time is enabled), `departure_count`, station name, **address** (reverse-geocoded), coordinates, `realtime` (bool) and `alerts` (disruption messages, real-time only). |
 
 ### Connection (from → to)
 
 | Entity | Type | Description |
 |---|---|---|
-| `sensor.swiss_transport_<from>_<to>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, delay, `duration_min`, `transfers`, the `products`/lines used, and `changes` — the transfer stations with arrival → onward platform), `connection_count`, from/to names and station ids. |
+| `sensor.swiss_transport_<from>_<to>_<tag>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, delay, `duration_min`, `transfers`, the `products`/lines used, and `changes` — the transfer stations with arrival → onward platform), `connection_count`, from/to names and station ids. |
 
-`<station>`, `<from>` and `<to>` are the stop names as the timetable API returns them, slugified: the board of Zürich HB is `sensor.swiss_transport_zurich_hb`, the connection Olten → Zürich HB is `sensor.swiss_transport_olten_zurich_hb`. The integration sets these object ids itself when an entity is first created, so they do not depend on your Home Assistant language — only the entity's displayed name ("Departures" / "Abfahrten") is localized. Like any entity, they can be renamed in the entity settings afterwards.
+`<station>`, `<from>` and `<to>` are the stop names as the timetable API returns them, slugified; `<tag>` is a short discriminator — the last four characters of the config entry id, lower-cased — that keeps two stops whose names slugify to the same text apart (say the railway station "Zürich HB" and a tram stop "Zürich, HB"). The board of Zürich HB is thus something like `sensor.swiss_transport_zurich_hb_k7q2`, the connection Olten → Zürich HB `sensor.swiss_transport_olten_zurich_hb_m3xz`. The integration suggests these object ids when an entity is first created, so they do not depend on your Home Assistant language — only the entity's displayed name ("Departures" / "Abfahrten") is localized. Entities created by versions before 1.4.0 keep the ids they have (without the tag). Like any entity, they can be renamed in the entity settings afterwards.
 
 Station boards refresh about every 90 seconds. Saved connections refresh every 5 minutes — the transport.opendata.ch API allows only 1000 connection queries per day, and the slower cadence keeps several saved routes comfortably within that quota. If the API ever answers with "too many requests" (HTTP 429), the affected entry pauses for 30 minutes and then resumes automatically.
 
@@ -44,7 +44,7 @@ The integration ships three cards, all with a visual editor. It serves the card 
 
 ```yaml
 type: custom:swiss-transport-card
-entity: sensor.swiss_transport_<station>
+entity: sensor.swiss_transport_<station>_<tag>
 title: Zürich HB      # optional
 rows: 8               # optional, max departures shown
 show_clock: true      # optional, show the date/time bar
@@ -60,7 +60,7 @@ mode_entity: select.swiss_transport_mode        # optional, follow timetable bro
 
 ```yaml
 type: custom:swiss-transport-connection-card
-entity: sensor.swiss_transport_<from>_<to>
+entity: sensor.swiss_transport_<from>_<to>_<tag>
 title: Olten → Zürich HB   # optional
 datetime_entity: datetime.swiss_transport_time  # optional, follow timetable browsing
 mode_entity: select.swiss_transport_mode        # optional, follow timetable browsing
@@ -129,7 +129,7 @@ That view is regenerated like the full dashboard is, so new config entries still
 
 ### 2b. Or build the cards yourself
 
-Take the YAML blocks above and place the cards on any dashboard you like — the strategy is a convenience, not a requirement. Replace the entity IDs with your own — they are built from the stop names (see [What it provides](#what-it-provides)), not from the localized entity name.
+Take the YAML blocks above and place the cards on any dashboard you like — the strategy is a convenience, not a requirement. Replace the entity IDs with your own — they are built from the stop names plus a short tag (see [What it provides](#what-it-provides)), not from the localized entity name.
 
 > **After updating the integration:** the card file is served without cache headers, so a browser reload picks up the new version and your resource URL never has to change. If a new card feature still does not show up, do a hard reload (Ctrl+F5 / Cmd+Shift+R).
 
