@@ -6,8 +6,10 @@ public opendata.ch transport API. No authentication required.
 from __future__ import annotations
 
 import logging
+import time
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -132,23 +134,20 @@ def _parse_departure(entry: dict) -> dict | None:
     }
 
 
-async def async_fetch_stationboard(
-    hass: HomeAssistant, station_id: str, limit: int, transportations: list[str] | None
-) -> dict:
-    """Fetch the stationboard for one station."""
-    session = async_get_clientsession(hass)
-    params = {"id": station_id, "limit": str(limit)}
-    if transportations:
-        # The API accepts the parameter repeated once per type.
-        params["transportations"] = transportations
-    async with session.get(
-        f"{API_BASE}/stationboard", params=params, timeout=FETCH_TIMEOUT_SECONDS
-    ) as resp:
-        resp.raise_for_status()
-        data = await resp.json(content_type=None)
+# transport.opendata.ch reads the `datetime` query parameter as Swiss local time.
+_SWISS_TZ = ZoneInfo("Europe/Zurich")
+# Since the DST change on 2026-10-25 the /stationboard endpoint has been
+# serving the board one hour late: with the bug the first departure is always
+# at least an hour away, so a board whose first row is this far ahead is
+# re-requested one hour earlier and departures already gone are dropped. On a
+# correct answer the earlier window only yields the same rows again, so the
+# fallback is harmless once the API behaves (/connections is not affected).
+BOARD_SHIFT_SUSPECT_SECONDS = 45 * 60
+BOARD_SHIFT_LOOKBACK = timedelta(hours=1)
 
-    station = data.get("station") or {}
-    coord = station.get("coordinate") or {}
+
+def _parse_board(data: dict) -> list[dict]:
+    """Flatten and sort the departures of one stationboard answer."""
     departures = []
     for entry in data.get("stationboard", []):
         try:
@@ -159,6 +158,52 @@ async def async_fetch_stationboard(
         if dep is not None:
             departures.append(dep)
     departures.sort(key=lambda d: d["departure_ts"])
+    return departures
+
+
+async def _async_get_board(session, params: dict) -> dict:
+    async with session.get(
+        f"{API_BASE}/stationboard", params=params, timeout=FETCH_TIMEOUT_SECONDS
+    ) as resp:
+        resp.raise_for_status()
+        return await resp.json(content_type=None)
+
+
+async def async_fetch_stationboard(
+    hass: HomeAssistant, station_id: str, limit: int, transportations: list[str] | None
+) -> dict:
+    """Fetch the stationboard for one station."""
+    session = async_get_clientsession(hass)
+    params = {"id": station_id, "limit": str(limit)}
+    if transportations:
+        # The API accepts the parameter repeated once per type.
+        params["transportations"] = transportations
+    data = await _async_get_board(session, params)
+    departures = _parse_board(data)
+
+    now = time.time()
+    if departures and departures[0]["departure_ts"] - now > BOARD_SHIFT_SUSPECT_SECONDS:
+        earlier = dict(params, limit=str(limit * 2))
+        earlier["datetime"] = (datetime.now(_SWISS_TZ) - BOARD_SHIFT_LOOKBACK).strftime(
+            "%Y-%m-%d %H:%M"
+        )
+        try:
+            again = await _async_get_board(session, earlier)
+        except Exception:  # noqa: BLE001 - keep the first answer rather than fail the refresh
+            _LOGGER.debug("Second stationboard request (one hour earlier) failed", exc_info=True)
+        else:
+            fresh = [d for d in _parse_board(again) if d["departure_ts"] >= now - 60]
+            if fresh:
+                _LOGGER.debug(
+                    "Stationboard %s started %d min ahead; using the one-hour-earlier window",
+                    station_id,
+                    (departures[0]["departure_ts"] - now) // 60,
+                )
+                data = again
+                departures = fresh[:limit]
+
+    station = data.get("station") or {}
+    coord = station.get("coordinate") or {}
     return {
         "station_id": station.get("id") or station_id,
         "station_name": station.get("name"),

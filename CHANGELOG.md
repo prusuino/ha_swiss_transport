@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1 — 2026-10-25
+
+Workaround for a timing bug in the data source.
+
+- **Departure boards one hour late since the DST change.** Since the switch from CEST to CET on 2026-10-25, transport.opendata.ch's `/stationboard` endpoint serves the board one hour late — the first row is always at least an hour away, both for "now" and for an explicit time (`/connections` is not affected; reported upstream as OpendataCH/Transport#224). The integration and the card now notice a board whose first row is that far ahead, ask once more for the window one hour earlier and drop the rows that have already left. Once the API is correct again the second request simply returns the same rows, so nothing changes for you then. Costs one extra `/stationboard` call per refresh while the bug lasts (well within the 10 080/day quota).
+
 ## 1.4.0 — 2026-08-29
 
 Hardening of the optional real-time token, and a small entity-id change for new entries.
