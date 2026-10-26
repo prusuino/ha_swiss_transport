@@ -1,0 +1,32 @@
+name: Release asset
+
+# Attaches a zip of the integration folder to every published release.
+# HACS downloads this file (hacs.json: zip_release + filename), and GitHub
+# counts the asset downloads, which HACS shows as the download number.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Build swiss_transport.zip (integration files at the archive root)
+        run: |
+          cd custom_components/swiss_transport
+          zip -r ../../swiss_transport.zip . -x '*/__pycache__/*' '*.pyc'
+          cd ../..
+          unzip -l swiss_transport.zip | head -20
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" swiss_transport.zip --clobber
