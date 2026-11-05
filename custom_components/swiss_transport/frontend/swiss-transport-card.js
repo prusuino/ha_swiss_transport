@@ -271,6 +271,27 @@ function timetableBanner(sel, mode, lang, escape) {
   }: ${escape(when)} · ${escape(kind)}</span></div>`;
 }
 
+/* A card-level rows limit above what the sensor fetches silently shows
+ * fewer rows than asked for. Explain where the count really comes from:
+ * the integration's Configure dialog, not the card. */
+const LIMIT_HINT = {
+  de: "Der Sensor liefert höchstens {n} Einträge — mehr zeigt die Karte nicht an. Erhöhe die Anzahl im Konfigurationsdialog der Integration, um mehr zu sehen.",
+  en: "The sensor fetches at most {n} entries — the card cannot show more. Raise the count in the integration's Configure dialog to see more.",
+  fr: "Le capteur fournit au maximum {n} entrées — la carte ne peut pas en afficher davantage. Augmentez le nombre dans la boîte de configuration de l'intégration.",
+  it: "Il sensore fornisce al massimo {n} elementi — la scheda non può mostrarne di più. Aumenta il numero nella finestra di configurazione dell'integrazione.",
+};
+
+/* The hint text, or "" when the pinned rows limit fits within what the
+ * sensor fetches (or nothing is pinned). */
+function limitHintText(hass, config, countAttr, lang) {
+  const n = parseInt(config.rows, 10);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  const st = hass && hass.states[config.entity];
+  const fetched = parseInt(st && st.attributes && st.attributes[countAttr], 10);
+  if (!Number.isFinite(fetched) || fetched <= 0 || n <= fetched) return "";
+  return (LIMIT_HINT[lang] || LIMIT_HINT.en).replace("{n}", fetched);
+}
+
 class SwissTransportCard extends HTMLElement {
   setConfig(config) {
     if (!config.entity) {
@@ -478,6 +499,9 @@ class SwissTransportCard extends HTMLElement {
     const ttMode = this._mode() !== "live" && selTime;
     const arrivalView = ttMode && this._mode() === "arrive";
     const ttHtml = ttMode ? timetableBanner(selTime, this._mode(), lang, (s) => this._escape(s)) : "";
+    // Live-only: in timetable mode the card fetches its own data, so the
+    // sensor's fetch count does not cap the board there.
+    const limitHint = ttMode ? "" : limitHintText(this._hass, this._config, "departure_count", lang);
     const typeLabel = arrivalView ? TYPE_ARRIVALS : TYPE_DEPARTURES;
     const emptyWord = arrivalView ? NO_ARR_WORD : NO_DEP_WORD;
 
@@ -569,6 +593,7 @@ class SwissTransportCard extends HTMLElement {
         }
         .ttbar ha-icon { --mdc-icon-size: 18px; color: var(--info-color, #2979ff); flex: none; }
         .empty { padding: 14px 0; color: var(--secondary-text-color); text-align: center; }
+        .limit-hint { padding: 8px 0 2px; font-size: 0.8em; color: var(--secondary-text-color); text-align: center; }
       </style>
       <ha-card>
         <div class="wrap">
@@ -586,6 +611,7 @@ class SwissTransportCard extends HTMLElement {
           ${ttHtml}
           ${alertsHtml}
           ${rows ? `<div class="board" style="grid-template-columns:${cols};">${header}${rows}</div>` : `<div class="empty">${emptyWord[lang] || emptyWord.en}</div>`}
+          ${limitHint ? `<div class="limit-hint">${this._escape(limitHint)}</div>` : ""}
         </div>
       </ha-card>`;
   }
@@ -657,6 +683,13 @@ class SwissTransportCardEditor extends HTMLElement {
         );
       });
       this.appendChild(this._form);
+      // Shown when the pinned rows limit exceeds what the sensor fetches.
+      this._hint = document.createElement("div");
+      this._hint.setAttribute(
+        "style",
+        "color: var(--secondary-text-color); font-size: 0.85em; padding: 6px 2px 0;"
+      );
+      this.appendChild(this._hint);
     }
     const lang = ((this._hass.language || "en").split("-")[0]);
     this._form.hass = this._hass;
@@ -687,6 +720,7 @@ class SwissTransportCardEditor extends HTMLElement {
     this._form.computeLabel = (schema) =>
       (EDITOR_LABELS[schema.name] && (EDITOR_LABELS[schema.name][lang] || EDITOR_LABELS[schema.name].en)) ||
       schema.name;
+    this._hint.textContent = limitHintText(this._hass, this._config, "departure_count", lang);
   }
 }
 
@@ -835,6 +869,9 @@ class SwissTransportConnectionCard extends HTMLElement {
     const selTime = this._selTime();
     const ttMode = this._mode() !== "live" && selTime;
     const ttHtml = ttMode ? timetableBanner(selTime, this._mode(), lang, (s) => this._escape(s)) : "";
+    // Live-only: in timetable mode the card fetches its own data, so the
+    // sensor's fetch count does not cap the board there.
+    const limitHint = ttMode ? "" : limitHintText(this._hass, this._config, "connection_count", lang);
 
     // Platform columns (Gleis) for departure and arrival, shown like on the
     // departure board — and dropped when no connection has that platform.
@@ -965,6 +1002,7 @@ class SwissTransportConnectionCard extends HTMLElement {
         }
         .ttbar ha-icon { --mdc-icon-size: 18px; color: var(--info-color, #2979ff); flex: none; }
         .empty { padding: 14px 0; color: var(--secondary-text-color); text-align: center; }
+        .limit-hint { padding: 8px 0 2px; font-size: 0.8em; color: var(--secondary-text-color); text-align: center; }
       </style>
       <ha-card>
         <div class="wrap">
@@ -978,6 +1016,7 @@ class SwissTransportConnectionCard extends HTMLElement {
           </div>
           ${ttHtml}
           ${rows ? `<div class="board" style="grid-template-columns:${cCols};">${header}${rows}</div>` : `<div class="empty">${NO_DEP_WORD[lang] || NO_DEP_WORD.en}</div>`}
+          ${limitHint ? `<div class="limit-hint">${this._escape(limitHint)}</div>` : ""}
         </div>
       </ha-card>`;
   }
@@ -1022,6 +1061,13 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
       });
       this.appendChild(this._form);
+      // Shown when the pinned rows limit exceeds what the sensor fetches.
+      this._hint = document.createElement("div");
+      this._hint.setAttribute(
+        "style",
+        "color: var(--secondary-text-color); font-size: 0.85em; padding: 6px 2px 0;"
+      );
+      this.appendChild(this._hint);
     }
     const lang = ((this._hass.language || "en").split("-")[0]);
     this._form.hass = this._hass;
@@ -1047,6 +1093,7 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
     ];
     this._form.computeLabel = (schema) =>
       (EDITOR_LABELS[schema.name] && (EDITOR_LABELS[schema.name][lang] || EDITOR_LABELS[schema.name].en)) || schema.name;
+    this._hint.textContent = limitHintText(this._hass, this._config, "connection_count", lang);
   }
 }
 

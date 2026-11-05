@@ -149,7 +149,7 @@ Replace the entity ID with your own — they are built from the stop names plus 
 
 ## Options
 
-Via the integration's Configure dialog you can change the **number of departures/connections**, and for a station board restrict the **transport types** shown (train / tram / bus / ship / cableway). Changes apply immediately. The bundled cards follow this count automatically — the card option `rows` only needs to be set when you want a card to show *fewer* rows than the integration fetches.
+Via the integration's Configure dialog you can change the **number of departures/connections**, and for a station board restrict the **transport types** shown (train / tram / bus / ship / cableway). Changes apply immediately. The bundled cards follow this count automatically — the card option `rows` only needs to be set when you want a card to show *fewer* rows than the integration fetches. If you set it *higher* than the integration fetches, the card and its editor show a hint that the sensor delivers at most the configured number, so you know to raise the count in the Configure dialog instead.
 
 ## Timetable browsing (optional)
 
