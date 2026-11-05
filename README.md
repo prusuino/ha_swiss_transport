@@ -38,7 +38,14 @@ Station boards refresh about every 90 seconds. Saved connections refresh every 5
 
 ## Bundled Lovelace cards
 
-The integration ships three cards, all with a visual editor. It serves the card file but does not write to your dashboard configuration — [registering the resource](#1-register-the-card-resource-once) is a short, one-time step.
+The integration ships four cards, all with a visual editor. It serves the card file but does not write to your dashboard configuration — [registering the resource](#1-register-the-card-resource-once) is a short, one-time step.
+
+**`swiss-transport-board-card`** — *the card to pick when you just want a board on your dashboard.* Insert it in any dashboard's card picker, select your stop or route under **Sensor**, done: the card recognizes whether the sensor is a station board or a saved connection and renders the matching board. It takes the same options as the specialized cards below, and the editor only shows the ones that apply to the board you picked.
+
+```yaml
+type: custom:swiss-transport-board-card
+entity: sensor.swiss_transport_<station>_<tag>
+```
 
 **`swiss-transport-card`** — a real departure board, laid out like a station display: **symbol · time · countdown · destination · platform · info**, with a live date/time bar on top and an "Abfahrten" label. Colored **line badges** matching the Swiss product scheme (S-Bahn white chip, IC/IR family red, tram/bus/ship/cableway in their mode color) with a transport-mode icon. The platform column is dropped for bus/tram stops; delays show in red. When the optional [real-time source](#real-time-optional) is enabled, cancelled departures are struck through and marked, a disruption banner appears, and an occupancy column is shown when data is available.
 
@@ -46,7 +53,7 @@ The integration ships three cards, all with a visual editor. It serves the card 
 type: custom:swiss-transport-card
 entity: sensor.swiss_transport_<station>_<tag>
 title: Zürich HB      # optional
-rows: 8               # optional, max departures shown
+rows: 8               # optional, max departures shown; unset = the count configured in the integration
 show_clock: true      # optional, show the date/time bar
 show_type: true       # optional, show the "Departures" label
 show_occupancy: true  # optional, show the occupancy column (real-time only)
@@ -66,7 +73,7 @@ datetime_entity: datetime.swiss_transport_time  # optional, follow timetable bro
 mode_entity: select.swiss_transport_mode        # optional, follow timetable browsing
 ```
 
-**`swiss-transport-controls-card`** — the [timetable browsing](#timetable-browsing-optional) selector bar: a **Live / Departure / Arrival** toggle plus a date/time picker. The [dashboard strategy](#2a-ready-made-dashboard-recommended) puts it at the top, and you can place it on any dashboard yourself:
+**`swiss-transport-controls-card`** — the [timetable browsing](#timetable-browsing-optional) selector bar: a **Live / Departure / Arrival** toggle plus a date/time picker. The [dashboard strategy](#2a-ready-made-dashboard-recommended) puts it at the top, and you can place it on any dashboard yourself. On a sections view it spans the full width by default and can be resized:
 
 ```yaml
 type: custom:swiss-transport-controls-card
@@ -129,13 +136,20 @@ That view is regenerated like the full dashboard is, so new config entries still
 
 ### 2b. Or build the cards yourself
 
-Take the YAML blocks above and place the cards on any dashboard you like — the strategy is a convenience, not a requirement. Replace the entity IDs with your own — they are built from the stop names plus a short tag (see [What it provides](#what-it-provides)), not from the localized entity name.
+On any dashboard, select **Edit → ⋮ → Add card** and pick **Swiss Transport** in the card picker — the visual editor asks for your stop or route and that is all. For most cases this is the easiest way; the YAML for manual configuration looks like this:
+
+```yaml
+type: custom:swiss-transport-board-card
+entity: sensor.swiss_transport_<station>_<tag>
+```
+
+Replace the entity ID with your own — they are built from the stop names plus a short tag (see [What it provides](#what-it-provides)), not from the localized entity name. The specialized cards (`custom:swiss-transport-card`, `custom:swiss-transport-connection-card`) keep working for dashboards that already use them, but they are no longer offered in the card picker — the unified card covers both, and only it always picks the right board type for the sensor.
 
 > **After updating the integration:** the card file is served without cache headers, so a browser reload picks up the new version and your resource URL never has to change. If a new card feature still does not show up, do a hard reload (Ctrl+F5 / Cmd+Shift+R).
 
 ## Options
 
-Via the integration's Configure dialog you can change the **number of departures/connections**, and for a station board restrict the **transport types** shown (train / tram / bus / ship / cableway). Changes apply immediately.
+Via the integration's Configure dialog you can change the **number of departures/connections**, and for a station board restrict the **transport types** shown (train / tram / bus / ship / cableway). Changes apply immediately. The bundled cards follow this count automatically — the card option `rows` only needs to be set when you want a card to show *fewer* rows than the integration fetches. If you set it *higher* than the integration fetches, the card and its editor show a hint that the sensor delivers at most the configured number, so you know to raise the count in the Configure dialog instead.
 
 ## Timetable browsing (optional)
 

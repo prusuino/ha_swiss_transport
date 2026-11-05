@@ -271,6 +271,27 @@ function timetableBanner(sel, mode, lang, escape) {
   }: ${escape(when)} · ${escape(kind)}</span></div>`;
 }
 
+/* A card-level rows limit above what the sensor fetches silently shows
+ * fewer rows than asked for. Explain where the count really comes from:
+ * the integration's Configure dialog, not the card. */
+const LIMIT_HINT = {
+  de: "Der Sensor liefert höchstens {n} Einträge — mehr zeigt die Karte nicht an. Erhöhe die Anzahl im Konfigurationsdialog der Integration, um mehr zu sehen.",
+  en: "The sensor fetches at most {n} entries — the card cannot show more. Raise the count in the integration's Configure dialog to see more.",
+  fr: "Le capteur fournit au maximum {n} entrées — la carte ne peut pas en afficher davantage. Augmentez le nombre dans la boîte de configuration de l'intégration.",
+  it: "Il sensore fornisce al massimo {n} elementi — la scheda non può mostrarne di più. Aumenta il numero nella finestra di configurazione dell'integrazione.",
+};
+
+/* The hint text, or "" when the pinned rows limit fits within what the
+ * sensor fetches (or nothing is pinned). */
+function limitHintText(hass, config, countAttr, lang) {
+  const n = parseInt(config.rows, 10);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  const st = hass && hass.states[config.entity];
+  const fetched = parseInt(st && st.attributes && st.attributes[countAttr], 10);
+  if (!Number.isFinite(fetched) || fetched <= 0 || n <= fetched) return "";
+  return (LIMIT_HINT[lang] || LIMIT_HINT.en).replace("{n}", fetched);
+}
+
 class SwissTransportCard extends HTMLElement {
   setConfig(config) {
     if (!config.entity) {
@@ -352,6 +373,12 @@ class SwissTransportCard extends HTMLElement {
     return 1 + Math.min(deps.length || 3, this._maxRows());
   }
 
+  // Full width by default and resizeable in the sections view — without
+  // getGridOptions the grid offers no resize handle.
+  getGridOptions() {
+    return { columns: "full", rows: "auto", min_columns: 4 };
+  }
+
   _lang() {
     const l = ((this._hass && this._hass.language) || LANG_FALLBACK).split("-")[0];
     return ["de", "en", "fr", "it"].includes(l) ? l : LANG_FALLBACK;
@@ -359,7 +386,12 @@ class SwissTransportCard extends HTMLElement {
 
   _maxRows() {
     const n = parseInt(this._config.rows, 10);
-    return Number.isFinite(n) && n > 0 ? n : 8;
+    if (Number.isFinite(n) && n > 0) return n;
+    // No card-level limit: follow the number of departures the integration
+    // was configured to fetch (departure_count attribute).
+    const st = this._hass && this._hass.states[this._config.entity];
+    const count = parseInt(st && st.attributes && st.attributes.departure_count, 10);
+    return Number.isFinite(count) && count > 0 ? count : 8;
   }
 
   _departures() {
@@ -473,6 +505,9 @@ class SwissTransportCard extends HTMLElement {
     const ttMode = this._mode() !== "live" && selTime;
     const arrivalView = ttMode && this._mode() === "arrive";
     const ttHtml = ttMode ? timetableBanner(selTime, this._mode(), lang, (s) => this._escape(s)) : "";
+    // Live-only: in timetable mode the card fetches its own data, so the
+    // sensor's fetch count does not cap the board there.
+    const limitHint = ttMode ? "" : limitHintText(this._hass, this._config, "departure_count", lang);
     const typeLabel = arrivalView ? TYPE_ARRIVALS : TYPE_DEPARTURES;
     const emptyWord = arrivalView ? NO_ARR_WORD : NO_DEP_WORD;
 
@@ -564,6 +599,7 @@ class SwissTransportCard extends HTMLElement {
         }
         .ttbar ha-icon { --mdc-icon-size: 18px; color: var(--info-color, #2979ff); flex: none; }
         .empty { padding: 14px 0; color: var(--secondary-text-color); text-align: center; }
+        .limit-hint { padding: 8px 0 2px; font-size: 0.8em; color: var(--secondary-text-color); text-align: center; }
       </style>
       <ha-card>
         <div class="wrap">
@@ -581,6 +617,7 @@ class SwissTransportCard extends HTMLElement {
           ${ttHtml}
           ${alertsHtml}
           ${rows ? `<div class="board" style="grid-template-columns:${cols};">${header}${rows}</div>` : `<div class="empty">${emptyWord[lang] || emptyWord.en}</div>`}
+          ${limitHint ? `<div class="limit-hint">${this._escape(limitHint)}</div>` : ""}
         </div>
       </ha-card>`;
   }
@@ -619,6 +656,14 @@ class SwissTransportCardEditor extends HTMLElement {
     this._render();
   }
 
+  // The limit the card falls back to when no explicit rows value is set:
+  // the departure_count the integration was configured to fetch.
+  _autoRows() {
+    const st = this._hass && this._hass.states[this._config.entity];
+    const count = parseInt(st && st.attributes && st.attributes.departure_count, 10);
+    return Number.isFinite(count) && count > 0 ? count : 8;
+  }
+
   _render() {
     if (!this._hass || !this._config) return;
     if (!this._form) {
@@ -627,7 +672,9 @@ class SwissTransportCardEditor extends HTMLElement {
         ev.stopPropagation();
         const config = { type: "custom:swiss-transport-card", ...ev.detail.value };
         if (!config.title) delete config.title;
-        if (!config.rows) delete config.rows;
+        // Unset or matching the integration's count means "auto": don't
+        // pin it, so later Configure-dialog changes keep applying.
+        if (!config.rows || config.rows === this._autoRows()) delete config.rows;
         // Keep the config clean: only store the toggles when turned off.
         if (config.show_clock !== false) delete config.show_clock;
         if (config.show_type !== false) delete config.show_type;
@@ -642,13 +689,20 @@ class SwissTransportCardEditor extends HTMLElement {
         );
       });
       this.appendChild(this._form);
+      // Shown when the pinned rows limit exceeds what the sensor fetches.
+      this._hint = document.createElement("div");
+      this._hint.setAttribute(
+        "style",
+        "color: var(--secondary-text-color); font-size: 0.85em; padding: 6px 2px 0;"
+      );
+      this.appendChild(this._hint);
     }
     const lang = ((this._hass.language || "en").split("-")[0]);
     this._form.hass = this._hass;
     this._form.data = {
       entity: this._config.entity || "",
       title: this._config.title || "",
-      rows: this._config.rows || 8,
+      rows: this._config.rows || this._autoRows(),
       show_clock: this._config.show_clock !== false,
       show_type: this._config.show_type !== false,
       show_occupancy: this._config.show_occupancy !== false,
@@ -672,18 +726,20 @@ class SwissTransportCardEditor extends HTMLElement {
     this._form.computeLabel = (schema) =>
       (EDITOR_LABELS[schema.name] && (EDITOR_LABELS[schema.name][lang] || EDITOR_LABELS[schema.name].en)) ||
       schema.name;
+    this._hint.textContent = limitHintText(this._hass, this._config, "departure_count", lang);
   }
 }
 
 customElements.define("swiss-transport-card-editor", SwissTransportCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "swiss-transport-card",
-  name: "Swiss Transport Card",
-  description: "A departure board for a Swiss public transport station.",
-  preview: true,
-});
+
+/* The specialized board cards are deliberately NOT registered in the card
+ * picker: the unified swiss-transport-board-card covers both, and its
+ * stub-config preview always renders the board that matches the sensor
+ * it finds, while these would show an empty board when they stub the
+ * other sensor type. The custom elements stay defined, so dashboards
+ * that already use these card types keep working. */
 
 
 /* ------------------------------------------------------------------ *
@@ -781,6 +837,12 @@ class SwissTransportConnectionCard extends HTMLElement {
     return 2 + Math.min((this._connections() || []).length || 3, this._maxRows());
   }
 
+  // Full width by default and resizeable in the sections view — without
+  // getGridOptions the grid offers no resize handle.
+  getGridOptions() {
+    return { columns: "full", rows: "auto", min_columns: 4 };
+  }
+
   _lang() {
     const l = ((this._hass && this._hass.language) || LANG_FALLBACK).split("-")[0];
     return ["de", "en", "fr", "it"].includes(l) ? l : LANG_FALLBACK;
@@ -788,7 +850,12 @@ class SwissTransportConnectionCard extends HTMLElement {
 
   _maxRows() {
     const n = parseInt(this._config.rows, 10);
-    return Number.isFinite(n) && n > 0 ? n : 8;
+    if (Number.isFinite(n) && n > 0) return n;
+    // No card-level limit: follow the number of connections the integration
+    // was configured to fetch (connection_count attribute).
+    const st = this._hass && this._hass.states[this._config.entity];
+    const count = parseInt(st && st.attributes && st.attributes.connection_count, 10);
+    return Number.isFinite(count) && count > 0 ? count : 6;
   }
 
   _connections() {
@@ -814,6 +881,9 @@ class SwissTransportConnectionCard extends HTMLElement {
     const selTime = this._selTime();
     const ttMode = this._mode() !== "live" && selTime;
     const ttHtml = ttMode ? timetableBanner(selTime, this._mode(), lang, (s) => this._escape(s)) : "";
+    // Live-only: in timetable mode the card fetches its own data, so the
+    // sensor's fetch count does not cap the board there.
+    const limitHint = ttMode ? "" : limitHintText(this._hass, this._config, "connection_count", lang);
 
     // Platform columns (Gleis) for departure and arrival, shown like on the
     // departure board — and dropped when no connection has that platform.
@@ -944,6 +1014,7 @@ class SwissTransportConnectionCard extends HTMLElement {
         }
         .ttbar ha-icon { --mdc-icon-size: 18px; color: var(--info-color, #2979ff); flex: none; }
         .empty { padding: 14px 0; color: var(--secondary-text-color); text-align: center; }
+        .limit-hint { padding: 8px 0 2px; font-size: 0.8em; color: var(--secondary-text-color); text-align: center; }
       </style>
       <ha-card>
         <div class="wrap">
@@ -957,6 +1028,7 @@ class SwissTransportConnectionCard extends HTMLElement {
           </div>
           ${ttHtml}
           ${rows ? `<div class="board" style="grid-template-columns:${cCols};">${header}${rows}</div>` : `<div class="empty">${NO_DEP_WORD[lang] || NO_DEP_WORD.en}</div>`}
+          ${limitHint ? `<div class="limit-hint">${this._escape(limitHint)}</div>` : ""}
         </div>
       </ha-card>`;
   }
@@ -973,6 +1045,15 @@ customElements.define("swiss-transport-connection-card", SwissTransportConnectio
 class SwissTransportConnectionCardEditor extends HTMLElement {
   setConfig(config) { this._config = config; this._render(); }
   set hass(hass) { this._hass = hass; this._render(); }
+
+  // The limit the card falls back to when no explicit rows value is set:
+  // the connection_count the integration was configured to fetch.
+  _autoRows() {
+    const st = this._hass && this._hass.states[this._config.entity];
+    const count = parseInt(st && st.attributes && st.attributes.connection_count, 10);
+    return Number.isFinite(count) && count > 0 ? count : 6;
+  }
+
   _render() {
     if (!this._hass || !this._config) return;
     if (!this._form) {
@@ -981,7 +1062,9 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
         ev.stopPropagation();
         const config = { type: "custom:swiss-transport-connection-card", ...ev.detail.value };
         if (!config.title) delete config.title;
-        if (!config.rows) delete config.rows;
+        // Unset or matching the integration's count means "auto": don't
+        // pin it, so later Configure-dialog changes keep applying.
+        if (!config.rows || config.rows === this._autoRows()) delete config.rows;
         if (config.show_clock !== false) delete config.show_clock;
         if (config.show_type !== false) delete config.show_type;
         if (config.show_changes !== false) delete config.show_changes;
@@ -990,13 +1073,20 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
       });
       this.appendChild(this._form);
+      // Shown when the pinned rows limit exceeds what the sensor fetches.
+      this._hint = document.createElement("div");
+      this._hint.setAttribute(
+        "style",
+        "color: var(--secondary-text-color); font-size: 0.85em; padding: 6px 2px 0;"
+      );
+      this.appendChild(this._hint);
     }
     const lang = ((this._hass.language || "en").split("-")[0]);
     this._form.hass = this._hass;
     this._form.data = {
       entity: this._config.entity || "",
       title: this._config.title || "",
-      rows: this._config.rows || 8,
+      rows: this._config.rows || this._autoRows(),
       show_clock: this._config.show_clock !== false,
       show_type: this._config.show_type !== false,
       show_changes: this._config.show_changes !== false,
@@ -1015,15 +1105,136 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
     ];
     this._form.computeLabel = (schema) =>
       (EDITOR_LABELS[schema.name] && (EDITOR_LABELS[schema.name][lang] || EDITOR_LABELS[schema.name].en)) || schema.name;
+    this._hint.textContent = limitHintText(this._hass, this._config, "connection_count", lang);
   }
 }
 
 customElements.define("swiss-transport-connection-card-editor", SwissTransportConnectionCardEditor);
 
+/* Kept out of the card picker for the same reason as the station card
+ * above — the unified swiss-transport-board-card covers it. */
+
+
+/* ------------------------------------------------------------------ *
+ * swiss-transport-board-card — the one card to insert by hand: pick    *
+ * any Swiss Transport sensor (stop or route) and it renders the       *
+ * matching board, so the card picker needs no decision between two    *
+ * card types up front. A thin wrapper that delegates to the          *
+ * specialized cards and reuses their editors.                        *
+ * ------------------------------------------------------------------ */
+
+class SwissTransportBoardCard extends HTMLElement {
+  setConfig(config) {
+    if (!config.entity) {
+      throw new Error("swiss-transport-board-card: 'entity' is required");
+    }
+    this._config = config;
+    if (!this._root) this._root = this.attachShadow({ mode: "open" });
+    this._syncCard();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._syncCard();
+  }
+
+  static getConfigElement() {
+    return document.createElement("swiss-transport-board-card-editor");
+  }
+
+  static getStubConfig(hass, entities) {
+    const e = (entities || []).find((x) => x.startsWith("sensor.swiss_transport_"));
+    return { entity: e || "" };
+  }
+
+  getCardSize() {
+    return this._card ? this._card.getCardSize() : 4;
+  }
+
+  // Same layout preferences as the board cards it wraps: full width by
+  // default, resizeable in the sections view.
+  getGridOptions() {
+    return { columns: "full", rows: "auto", min_columns: 4 };
+  }
+
+  // A route sensor exposes a connections attribute, a stop sensor a
+  // departures one. Until the state is known, a stop board is assumed.
+  _isConnectionSensor() {
+    const st = this._hass && this._hass.states[this._config.entity];
+    return !!(st && st.attributes && Array.isArray(st.attributes.connections));
+  }
+
+  _syncCard() {
+    if (!this._hass || !this._config) return;
+    const connection = this._isConnectionSensor();
+    if (!this._card || this._connection !== connection) {
+      this._connection = connection;
+      this._card = document.createElement(
+        connection ? "swiss-transport-connection-card" : "swiss-transport-card"
+      );
+      this._root.replaceChildren(this._card);
+    }
+    this._card.setConfig(this._config);
+    this._card.hass = this._hass;
+  }
+}
+
+customElements.define("swiss-transport-board-card", SwissTransportBoardCard);
+
+class SwissTransportBoardCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = config;
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _isConnectionSensor() {
+    const st = this._hass && this._hass.states[(this._config && this._config.entity) || ""];
+    return !!(st && st.attributes && Array.isArray(st.attributes.connections));
+  }
+
+  // Delegates to the specialized editor that matches the picked sensor,
+  // so the form always shows the options relevant to the board type.
+  _render() {
+    if (!this._hass || !this._config) return;
+    const connection = this._isConnectionSensor();
+    if (!this._editor || this._connection !== connection) {
+      this._connection = connection;
+      this._editor = document.createElement(
+        connection ? "swiss-transport-connection-card-editor" : "swiss-transport-card-editor"
+      );
+      this._editor.addEventListener("config-changed", (ev) => {
+        ev.stopPropagation();
+        // Hand the config on under the unified card type.
+        this.dispatchEvent(
+          new CustomEvent("config-changed", {
+            detail: {
+              config: { ...ev.detail.config, type: "custom:swiss-transport-board-card" },
+            },
+            bubbles: true,
+            composed: true,
+          })
+        );
+      });
+      this.replaceChildren(this._editor);
+    }
+    // The specialized editors read and write the same config keys; only
+    // the card type differs.
+    this._editor.setConfig(this._config);
+    this._editor.hass = this._hass;
+  }
+}
+
+customElements.define("swiss-transport-board-card-editor", SwissTransportBoardCardEditor);
+
 window.customCards.push({
-  type: "swiss-transport-connection-card",
-  name: "Swiss Transport Connection Card",
-  description: "A board of connections for a saved from to route.",
+  type: "swiss-transport-board-card",
+  name: "Swiss Transport",
+  description: "A departure board of a stop or a board of a saved route. Pick your stop or route.",
   preview: true,
 });
 
@@ -1058,6 +1269,13 @@ class SwissTransportControlsCard extends HTMLElement {
 
   getCardSize() {
     return 1;
+  }
+
+  // Full width by default, like the strategy dashboard places it, and
+  // resizeable in the sections view (needs getGridOptions for the
+  // resize handle to appear at all).
+  getGridOptions() {
+    return { columns: "full", rows: "auto", min_columns: 4 };
   }
 
   _lang() {
@@ -1169,7 +1387,7 @@ customElements.define("swiss-transport-controls-card", SwissTransportControlsCar
 window.customCards.push({
   type: "swiss-transport-controls-card",
   name: "Swiss Transport Controls",
-  description: "Global date/time and mode selector that every Swiss Transport board follows.",
+  description: "The Live / Departure / Arrival switch with a date/time picker, for browsing any board at another time. Boards follow it automatically.",
   preview: false,
 });
 
