@@ -143,7 +143,7 @@ type: custom:swiss-transport-board-card
 entity: sensor.swiss_transport_<station>_<tag>
 ```
 
-Replace the entity ID with your own — they are built from the stop names plus a short tag (see [What it provides](#what-it-provides)), not from the localized entity name. The specialized cards (`custom:swiss-transport-card`, `custom:swiss-transport-connection-card`) keep working unchanged for dashboards that already use them.
+Replace the entity ID with your own — they are built from the stop names plus a short tag (see [What it provides](#what-it-provides)), not from the localized entity name. The specialized cards (`custom:swiss-transport-card`, `custom:swiss-transport-connection-card`) keep working for dashboards that already use them, but they are no longer offered in the card picker — the unified card covers both, and only it always picks the right board type for the sensor.
 
 > **After updating the integration:** the card file is served without cache headers, so a browser reload picks up the new version and your resource URL never has to change. If a new card feature still does not show up, do a hard reload (Ctrl+F5 / Cmd+Shift+R).
 

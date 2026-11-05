@@ -693,12 +693,13 @@ class SwissTransportCardEditor extends HTMLElement {
 customElements.define("swiss-transport-card-editor", SwissTransportCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "swiss-transport-card",
-  name: "Swiss Transport Card",
-  description: "A departure board for a Swiss public transport station.",
-  preview: true,
-});
+
+/* The specialized board cards are deliberately NOT registered in the card
+ * picker: the unified swiss-transport-board-card covers both, and its
+ * stub-config preview always renders the board that matches the sensor
+ * it finds, while these would show an empty board when they stub the
+ * other sensor type. The custom elements stay defined, so dashboards
+ * that already use these card types keep working. */
 
 
 /* ------------------------------------------------------------------ *
@@ -1051,12 +1052,8 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
 
 customElements.define("swiss-transport-connection-card-editor", SwissTransportConnectionCardEditor);
 
-window.customCards.push({
-  type: "swiss-transport-connection-card",
-  name: "Swiss Transport Connection Card",
-  description: "A board of connections for a saved from to route.",
-  preview: true,
-});
+/* Kept out of the card picker for the same reason as the station card
+ * above — the unified swiss-transport-board-card covers it. */
 
 
 /* ------------------------------------------------------------------ *
@@ -1318,7 +1315,7 @@ customElements.define("swiss-transport-controls-card", SwissTransportControlsCar
 window.customCards.push({
   type: "swiss-transport-controls-card",
   name: "Swiss Transport Controls",
-  description: "Global date/time and mode selector that every Swiss Transport board follows.",
+  description: "The Live / Departure / Arrival switch with a date/time picker, for browsing any board at another time. Boards follow it automatically.",
   preview: false,
 });
 
