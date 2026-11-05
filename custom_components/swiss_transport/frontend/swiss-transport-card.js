@@ -373,6 +373,12 @@ class SwissTransportCard extends HTMLElement {
     return 1 + Math.min(deps.length || 3, this._maxRows());
   }
 
+  // Full width by default and resizeable in the sections view — without
+  // getGridOptions the grid offers no resize handle.
+  getGridOptions() {
+    return { columns: "full", rows: "auto", min_columns: 4 };
+  }
+
   _lang() {
     const l = ((this._hass && this._hass.language) || LANG_FALLBACK).split("-")[0];
     return ["de", "en", "fr", "it"].includes(l) ? l : LANG_FALLBACK;
@@ -831,6 +837,12 @@ class SwissTransportConnectionCard extends HTMLElement {
     return 2 + Math.min((this._connections() || []).length || 3, this._maxRows());
   }
 
+  // Full width by default and resizeable in the sections view — without
+  // getGridOptions the grid offers no resize handle.
+  getGridOptions() {
+    return { columns: "full", rows: "auto", min_columns: 4 };
+  }
+
   _lang() {
     const l = ((this._hass && this._hass.language) || LANG_FALLBACK).split("-")[0];
     return ["de", "en", "fr", "it"].includes(l) ? l : LANG_FALLBACK;
@@ -1139,6 +1151,12 @@ class SwissTransportBoardCard extends HTMLElement {
     return this._card ? this._card.getCardSize() : 4;
   }
 
+  // Same layout preferences as the board cards it wraps: full width by
+  // default, resizeable in the sections view.
+  getGridOptions() {
+    return { columns: "full", rows: "auto", min_columns: 4 };
+  }
+
   // A route sensor exposes a connections attribute, a stop sensor a
   // departures one. Until the state is known, a stop board is assumed.
   _isConnectionSensor() {
@@ -1251,6 +1269,13 @@ class SwissTransportControlsCard extends HTMLElement {
 
   getCardSize() {
     return 1;
+  }
+
+  // Full width by default, like the strategy dashboard places it, and
+  // resizeable in the sections view (needs getGridOptions for the
+  // resize handle to appear at all).
+  getGridOptions() {
+    return { columns: "full", rows: "auto", min_columns: 4 };
   }
 
   _lang() {

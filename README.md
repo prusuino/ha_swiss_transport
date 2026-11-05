@@ -73,7 +73,7 @@ datetime_entity: datetime.swiss_transport_time  # optional, follow timetable bro
 mode_entity: select.swiss_transport_mode        # optional, follow timetable browsing
 ```
 
-**`swiss-transport-controls-card`** — the [timetable browsing](#timetable-browsing-optional) selector bar: a **Live / Departure / Arrival** toggle plus a date/time picker. The [dashboard strategy](#2a-ready-made-dashboard-recommended) puts it at the top, and you can place it on any dashboard yourself:
+**`swiss-transport-controls-card`** — the [timetable browsing](#timetable-browsing-optional) selector bar: a **Live / Departure / Arrival** toggle plus a date/time picker. The [dashboard strategy](#2a-ready-made-dashboard-recommended) puts it at the top, and you can place it on any dashboard yourself. On a sections view it spans the full width by default and can be resized:
 
 ```yaml
 type: custom:swiss-transport-controls-card
