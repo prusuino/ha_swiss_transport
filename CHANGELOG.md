@@ -4,6 +4,7 @@
 
 The cards now respect the count configured in the integration.
 
+- **New: `swiss-transport-board-card`, one card for stops and routes.** Inserting a board into your own dashboard no longer requires knowing which of the two specialized cards fits: the new card appears in the card picker as **Swiss Transport**, you pick your stop or route sensor, and it renders the matching board — the editor shows only the options that apply. The specialized cards keep working unchanged.
 - **Fixed: cards capped at 8 rows regardless of the configured count.** Both bundled cards hard-coded a maximum of 8 rows when their `rows` option was not set, so a station board or connection configured to show more (e.g. 14 departures) still rendered only 8. Unset `rows` now follows the `departure_count` / `connection_count` the integration fetches — i.e. the number from the integration's Configure dialog — and only an explicit `rows` value limits a card further.
 - **Fixed: the visual editors pinned `rows: 8` into the card config.** Merely opening a card's editor and changing an unrelated option (e.g. the title) stored `rows: 8` permanently, overriding the integration's count. The editors now only persist `rows` when it differs from what the integration fetches.
 

@@ -1060,6 +1060,124 @@ window.customCards.push({
 
 
 /* ------------------------------------------------------------------ *
+ * swiss-transport-board-card — the one card to insert by hand: pick    *
+ * any Swiss Transport sensor (stop or route) and it renders the       *
+ * matching board, so the card picker needs no decision between two    *
+ * card types up front. A thin wrapper that delegates to the          *
+ * specialized cards and reuses their editors.                        *
+ * ------------------------------------------------------------------ */
+
+class SwissTransportBoardCard extends HTMLElement {
+  setConfig(config) {
+    if (!config.entity) {
+      throw new Error("swiss-transport-board-card: 'entity' is required");
+    }
+    this._config = config;
+    if (!this._root) this._root = this.attachShadow({ mode: "open" });
+    this._syncCard();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._syncCard();
+  }
+
+  static getConfigElement() {
+    return document.createElement("swiss-transport-board-card-editor");
+  }
+
+  static getStubConfig(hass, entities) {
+    const e = (entities || []).find((x) => x.startsWith("sensor.swiss_transport_"));
+    return { entity: e || "" };
+  }
+
+  getCardSize() {
+    return this._card ? this._card.getCardSize() : 4;
+  }
+
+  // A route sensor exposes a connections attribute, a stop sensor a
+  // departures one. Until the state is known, a stop board is assumed.
+  _isConnectionSensor() {
+    const st = this._hass && this._hass.states[this._config.entity];
+    return !!(st && st.attributes && Array.isArray(st.attributes.connections));
+  }
+
+  _syncCard() {
+    if (!this._hass || !this._config) return;
+    const connection = this._isConnectionSensor();
+    if (!this._card || this._connection !== connection) {
+      this._connection = connection;
+      this._card = document.createElement(
+        connection ? "swiss-transport-connection-card" : "swiss-transport-card"
+      );
+      this._root.replaceChildren(this._card);
+    }
+    this._card.setConfig(this._config);
+    this._card.hass = this._hass;
+  }
+}
+
+customElements.define("swiss-transport-board-card", SwissTransportBoardCard);
+
+class SwissTransportBoardCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = config;
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _isConnectionSensor() {
+    const st = this._hass && this._hass.states[(this._config && this._config.entity) || ""];
+    return !!(st && st.attributes && Array.isArray(st.attributes.connections));
+  }
+
+  // Delegates to the specialized editor that matches the picked sensor,
+  // so the form always shows the options relevant to the board type.
+  _render() {
+    if (!this._hass || !this._config) return;
+    const connection = this._isConnectionSensor();
+    if (!this._editor || this._connection !== connection) {
+      this._connection = connection;
+      this._editor = document.createElement(
+        connection ? "swiss-transport-connection-card-editor" : "swiss-transport-card-editor"
+      );
+      this._editor.addEventListener("config-changed", (ev) => {
+        ev.stopPropagation();
+        // Hand the config on under the unified card type.
+        this.dispatchEvent(
+          new CustomEvent("config-changed", {
+            detail: {
+              config: { ...ev.detail.config, type: "custom:swiss-transport-board-card" },
+            },
+            bubbles: true,
+            composed: true,
+          })
+        );
+      });
+      this.replaceChildren(this._editor);
+    }
+    // The specialized editors read and write the same config keys; only
+    // the card type differs.
+    this._editor.setConfig(this._config);
+    this._editor.hass = this._hass;
+  }
+}
+
+customElements.define("swiss-transport-board-card-editor", SwissTransportBoardCardEditor);
+
+window.customCards.push({
+  type: "swiss-transport-board-card",
+  name: "Swiss Transport",
+  description: "A departure board of a stop or a board of a saved route. Pick your stop or route.",
+  preview: true,
+});
+
+
+/* ------------------------------------------------------------------ *
  * swiss-transport-controls-card — the global date/time + mode selector *
  * bar. A compact segmented control (Live / Departure / Arrival) plus a  *
  * date/time picker with ‹ › stepping. Drives the shared datetime and    *
