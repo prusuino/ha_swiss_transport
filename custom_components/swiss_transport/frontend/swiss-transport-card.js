@@ -281,13 +281,24 @@ const LIMIT_HINT = {
   it: "Il sensore fornisce al massimo {n} elementi — la scheda non può mostrarne di più. Aumenta il numero nella finestra di configurazione dell'integrazione.",
 };
 
+/* The number of entries the integration is configured to fetch: the
+ * sensor's `limit` attribute (1.5.0+). Older sensors only carry the count
+ * delivered in the last refresh, which is used as the fallback. */
+function fetchLimit(st, countAttr) {
+  const attrs = (st && st.attributes) || {};
+  const limit = parseInt(attrs.limit, 10);
+  if (Number.isFinite(limit) && limit > 0) return limit;
+  const count = parseInt(attrs[countAttr], 10);
+  return Number.isFinite(count) && count > 0 ? count : NaN;
+}
+
 /* The hint text, or "" when the pinned rows limit fits within what the
  * sensor fetches (or nothing is pinned). */
 function limitHintText(hass, config, countAttr, lang) {
   const n = parseInt(config.rows, 10);
   if (!Number.isFinite(n) || n <= 0) return "";
   const st = hass && hass.states[config.entity];
-  const fetched = parseInt(st && st.attributes && st.attributes[countAttr], 10);
+  const fetched = fetchLimit(st, countAttr);
   if (!Number.isFinite(fetched) || fetched <= 0 || n <= fetched) return "";
   return (LIMIT_HINT[lang] || LIMIT_HINT.en).replace("{n}", fetched);
 }
@@ -390,7 +401,7 @@ class SwissTransportCard extends HTMLElement {
     // No card-level limit: follow the number of departures the integration
     // was configured to fetch (departure_count attribute).
     const st = this._hass && this._hass.states[this._config.entity];
-    const count = parseInt(st && st.attributes && st.attributes.departure_count, 10);
+    const count = fetchLimit(st, "departure_count");
     return Number.isFinite(count) && count > 0 ? count : 8;
   }
 
@@ -660,7 +671,7 @@ class SwissTransportCardEditor extends HTMLElement {
   // the departure_count the integration was configured to fetch.
   _autoRows() {
     const st = this._hass && this._hass.states[this._config.entity];
-    const count = parseInt(st && st.attributes && st.attributes.departure_count, 10);
+    const count = fetchLimit(st, "departure_count");
     return Number.isFinite(count) && count > 0 ? count : 8;
   }
 
@@ -854,7 +865,7 @@ class SwissTransportConnectionCard extends HTMLElement {
     // No card-level limit: follow the number of connections the integration
     // was configured to fetch (connection_count attribute).
     const st = this._hass && this._hass.states[this._config.entity];
-    const count = parseInt(st && st.attributes && st.attributes.connection_count, 10);
+    const count = fetchLimit(st, "connection_count");
     return Number.isFinite(count) && count > 0 ? count : 6;
   }
 
@@ -1050,7 +1061,7 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
   // the connection_count the integration was configured to fetch.
   _autoRows() {
     const st = this._hass && this._hass.states[this._config.entity];
-    const count = parseInt(st && st.attributes && st.attributes.connection_count, 10);
+    const count = fetchLimit(st, "connection_count");
     return Number.isFinite(count) && count > 0 ? count : 6;
   }
 

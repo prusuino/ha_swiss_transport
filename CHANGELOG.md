@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.5.0 — 2026-11-05
 
-The cards now respect the count configured in the integration.
+The cards now respect the count configured in the integration. The card improvements in this release were contributed by @borismacek in #3 — thank you.
 
 - **New: `swiss-transport-board-card`, one card for stops and routes.** Inserting a board into your own dashboard no longer requires knowing which of the two specialized cards fits: the new card appears in the card picker as **Swiss Transport**, you pick your stop or route sensor, and it renders the matching board — the editor shows only the options that apply. The specialized cards keep working unchanged.
 - **The card picker is decluttered.** The specialized station and connection cards are no longer offered in the card picker — the unified card covers both, and only it always renders the board type that matches the picked sensor (the specialized cards' previews could end up empty when they stubbed the other sensor type). Existing dashboards and the strategy dashboard keep using them as before; only the picker shows fewer, clearer choices. The **Swiss Transport Controls** card stays in the picker with a description that says what it does.
@@ -10,6 +10,7 @@ The cards now respect the count configured in the integration.
 - **The cards are now proper citizens of the sections view.** All cards declare `getGridOptions()`: without it, the sections grid offers no resize handle, so cards added by hand could not be stretched or shrunk at all. The controls bar and the boards default to the full section width — the same spot the strategy dashboard gives them — and can be resized down to a third of the width. Height follows their content.
 - **Fixed: cards capped at 8 rows regardless of the configured count.** Both bundled cards hard-coded a maximum of 8 rows when their `rows` option was not set, so a station board or connection configured to show more (e.g. 14 departures) still rendered only 8. Unset `rows` now follows the `departure_count` / `connection_count` the integration fetches — i.e. the number from the integration's Configure dialog — and only an explicit `rows` value limits a card further.
 - **Fixed: the visual editors pinned `rows: 8` into the card config.** Merely opening a card's editor and changing an unrelated option (e.g. the title) stored `rows: 8` permanently, overriding the integration's count. The editors now only persist `rows` when it differs from what the integration fetches.
+- **The sensors expose the configured count as `limit`.** `departure_count` and `connection_count` are the entries delivered by the last refresh, which can be fewer than configured late in the evening or at a small stop; the cards and their hint now follow the configured `limit` instead, so the hint no longer appears just because few departures are left, and the editors no longer pin or drop `rows` depending on the time of day. Older sensors without the attribute fall back to the delivered count.
 
 ## 1.4.1 — 2026-10-25
 

@@ -13,8 +13,10 @@ from homeassistant.util import slugify
 
 from .const import (
     CONF_ENTRY_TYPE,
+    CONF_LIMIT,
     CONF_FROM_ID,
     CONF_FROM_NAME,
+    DEFAULT_LIMIT,
     CONF_STATION_NAME,
     CONF_TO_ID,
     CONF_TO_NAME,
@@ -53,6 +55,11 @@ async def async_setup_entry(
     else:
         sensor = SwissTransportDeparturesSensor(hass, coordinator, entry)
     async_add_entities([sensor])
+
+
+def _configured_limit(entry: ConfigEntry) -> int:
+    """The number of entries the entry is configured to fetch (Configure dialog)."""
+    return int(entry.options.get(CONF_LIMIT, entry.data.get(CONF_LIMIT, DEFAULT_LIMIT)))
 
 
 class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator], SensorEntity):
@@ -101,7 +108,11 @@ class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator
             "address": data.get("address"),
             "latitude": data.get("latitude"),
             "longitude": data.get("longitude"),
+            # Delivered vs. configured: the board may hold fewer rows than
+            # asked for (late evening, small stop); the bundled cards size
+            # themselves by the configured limit.
             "departure_count": len(deps),
+            "limit": _configured_limit(self._entry),
             # True when the board was enriched with opentransportdata.swiss
             # OJP real-time data (fresher delays, cancellations, occupancy).
             "realtime": bool(data.get("realtime")),
@@ -154,5 +165,6 @@ class SwissConnectionSensor(CoordinatorEntity[SwissConnectionCoordinator], Senso
             "from_id": self._entry.data.get(CONF_FROM_ID),
             "to_id": self._entry.data.get(CONF_TO_ID),
             "connection_count": len(cons),
+            "limit": _configured_limit(self._entry),
             "connections": cons,
         }
