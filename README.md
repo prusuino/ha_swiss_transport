@@ -46,7 +46,7 @@ The integration ships three cards, all with a visual editor. It serves the card 
 type: custom:swiss-transport-card
 entity: sensor.swiss_transport_<station>_<tag>
 title: Zürich HB      # optional
-rows: 8               # optional, max departures shown
+rows: 8               # optional, max departures shown; unset = the count configured in the integration
 show_clock: true      # optional, show the date/time bar
 show_type: true       # optional, show the "Departures" label
 show_occupancy: true  # optional, show the occupancy column (real-time only)
@@ -135,7 +135,7 @@ Take the YAML blocks above and place the cards on any dashboard you like — the
 
 ## Options
 
-Via the integration's Configure dialog you can change the **number of departures/connections**, and for a station board restrict the **transport types** shown (train / tram / bus / ship / cableway). Changes apply immediately.
+Via the integration's Configure dialog you can change the **number of departures/connections**, and for a station board restrict the **transport types** shown (train / tram / bus / ship / cableway). Changes apply immediately. The bundled cards follow this count automatically — the card option `rows` only needs to be set when you want a card to show *fewer* rows than the integration fetches.
 
 ## Timetable browsing (optional)
 

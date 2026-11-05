@@ -359,7 +359,12 @@ class SwissTransportCard extends HTMLElement {
 
   _maxRows() {
     const n = parseInt(this._config.rows, 10);
-    return Number.isFinite(n) && n > 0 ? n : 8;
+    if (Number.isFinite(n) && n > 0) return n;
+    // No card-level limit: follow the number of departures the integration
+    // was configured to fetch (departure_count attribute).
+    const st = this._hass && this._hass.states[this._config.entity];
+    const count = parseInt(st && st.attributes && st.attributes.departure_count, 10);
+    return Number.isFinite(count) && count > 0 ? count : 8;
   }
 
   _departures() {
@@ -619,6 +624,14 @@ class SwissTransportCardEditor extends HTMLElement {
     this._render();
   }
 
+  // The limit the card falls back to when no explicit rows value is set:
+  // the departure_count the integration was configured to fetch.
+  _autoRows() {
+    const st = this._hass && this._hass.states[this._config.entity];
+    const count = parseInt(st && st.attributes && st.attributes.departure_count, 10);
+    return Number.isFinite(count) && count > 0 ? count : 8;
+  }
+
   _render() {
     if (!this._hass || !this._config) return;
     if (!this._form) {
@@ -627,7 +640,9 @@ class SwissTransportCardEditor extends HTMLElement {
         ev.stopPropagation();
         const config = { type: "custom:swiss-transport-card", ...ev.detail.value };
         if (!config.title) delete config.title;
-        if (!config.rows) delete config.rows;
+        // Unset or matching the integration's count means "auto": don't
+        // pin it, so later Configure-dialog changes keep applying.
+        if (!config.rows || config.rows === this._autoRows()) delete config.rows;
         // Keep the config clean: only store the toggles when turned off.
         if (config.show_clock !== false) delete config.show_clock;
         if (config.show_type !== false) delete config.show_type;
@@ -648,7 +663,7 @@ class SwissTransportCardEditor extends HTMLElement {
     this._form.data = {
       entity: this._config.entity || "",
       title: this._config.title || "",
-      rows: this._config.rows || 8,
+      rows: this._config.rows || this._autoRows(),
       show_clock: this._config.show_clock !== false,
       show_type: this._config.show_type !== false,
       show_occupancy: this._config.show_occupancy !== false,
@@ -788,7 +803,12 @@ class SwissTransportConnectionCard extends HTMLElement {
 
   _maxRows() {
     const n = parseInt(this._config.rows, 10);
-    return Number.isFinite(n) && n > 0 ? n : 8;
+    if (Number.isFinite(n) && n > 0) return n;
+    // No card-level limit: follow the number of connections the integration
+    // was configured to fetch (connection_count attribute).
+    const st = this._hass && this._hass.states[this._config.entity];
+    const count = parseInt(st && st.attributes && st.attributes.connection_count, 10);
+    return Number.isFinite(count) && count > 0 ? count : 6;
   }
 
   _connections() {
@@ -973,6 +993,15 @@ customElements.define("swiss-transport-connection-card", SwissTransportConnectio
 class SwissTransportConnectionCardEditor extends HTMLElement {
   setConfig(config) { this._config = config; this._render(); }
   set hass(hass) { this._hass = hass; this._render(); }
+
+  // The limit the card falls back to when no explicit rows value is set:
+  // the connection_count the integration was configured to fetch.
+  _autoRows() {
+    const st = this._hass && this._hass.states[this._config.entity];
+    const count = parseInt(st && st.attributes && st.attributes.connection_count, 10);
+    return Number.isFinite(count) && count > 0 ? count : 6;
+  }
+
   _render() {
     if (!this._hass || !this._config) return;
     if (!this._form) {
@@ -981,7 +1010,9 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
         ev.stopPropagation();
         const config = { type: "custom:swiss-transport-connection-card", ...ev.detail.value };
         if (!config.title) delete config.title;
-        if (!config.rows) delete config.rows;
+        // Unset or matching the integration's count means "auto": don't
+        // pin it, so later Configure-dialog changes keep applying.
+        if (!config.rows || config.rows === this._autoRows()) delete config.rows;
         if (config.show_clock !== false) delete config.show_clock;
         if (config.show_type !== false) delete config.show_type;
         if (config.show_changes !== false) delete config.show_changes;
@@ -996,7 +1027,7 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
     this._form.data = {
       entity: this._config.entity || "",
       title: this._config.title || "",
-      rows: this._config.rows || 8,
+      rows: this._config.rows || this._autoRows(),
       show_clock: this._config.show_clock !== false,
       show_type: this._config.show_type !== false,
       show_changes: this._config.show_changes !== false,
