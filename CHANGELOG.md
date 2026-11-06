@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.0 — 2026-11-06
+
+- **New: diagnostics download.** The entry menu under **Settings → Devices & services** offers *Download diagnostics*: the entry's configuration, what was last fetched and the current state of its entities, with coordinates, credentials and other personal values redacted and long lists cut. Attach it to an issue report.
+
 ## 1.7.0 — 2026-11-06
 
 - **New: triggers in the automation editor** (Home Assistant 2026.10 or newer). *Next departure delayed* fires when the next departure of a stop or the next connection of a route reaches a minimum delay you set; *Disruption reported* when a disruption message appears for a stop (real-time source). Both target the integration's own sensors, with the usual *for* and behaviour options, in all four languages. On older versions the entries are simply not offered.
