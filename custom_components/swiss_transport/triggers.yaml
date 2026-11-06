@@ -1,0 +1,46 @@
+.board_target: &board_target
+  entity:
+    - integration: swiss_transport
+      domain: sensor
+      device_class: timestamp
+
+departure_delayed:
+  fields:
+    behavior:
+      required: true
+      default: each
+      selector:
+        automation_behavior:
+          mode: trigger
+    for:
+      required: true
+      default: 00:00:00
+      selector:
+        duration:
+    minimum_delay:
+      required: false
+      default: 5
+      example: 5
+      selector:
+        number:
+          min: 1
+          max: 180
+          step: 1
+          mode: box
+          unit_of_measurement: min
+  target: *board_target
+
+disruption_reported:
+  fields:
+    behavior:
+      required: true
+      default: each
+      selector:
+        automation_behavior:
+          mode: trigger
+    for:
+      required: true
+      default: 00:00:00
+      selector:
+        duration:
+  target: *board_target

@@ -144,5 +144,34 @@
     "rate_limited": {
       "message": "Der Fahrplandienst nimmt zurzeit keine weiteren Anfragen an (Tageskontingent erreicht oder zu viele Anfragen)."
     }
+  },
+  "triggers": {
+    "departure_delayed": {
+      "name": "Nächste Abfahrt verspätet",
+      "description": "Löst aus, wenn die nächste Abfahrt einer Haltestelle (oder die nächste Verbindung einer gespeicherten Strecke) mindestens die angegebene Anzahl Minuten Verspätung hat.",
+      "fields": {
+        "behavior": {
+          "name": "Auslösen wenn"
+        },
+        "for": {
+          "name": "Mindestens für"
+        },
+        "minimum_delay": {
+          "name": "Mindestverspätung"
+        }
+      }
+    },
+    "disruption_reported": {
+      "name": "Störung gemeldet",
+      "description": "Löst aus, wenn für eine Haltestelle eine Störungsmeldung erscheint (nur mit Echtzeitquelle).",
+      "fields": {
+        "behavior": {
+          "name": "Auslösen wenn"
+        },
+        "for": {
+          "name": "Mindestens für"
+        }
+      }
+    }
   }
 }

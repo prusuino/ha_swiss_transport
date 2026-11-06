@@ -1,0 +1,10 @@
+{
+  "triggers": {
+    "departure_delayed": {
+      "trigger": "mdi:clock-alert-outline"
+    },
+    "disruption_reported": {
+      "trigger": "mdi:alert-octagon-outline"
+    }
+  }
+}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.0 — 2026-11-06
+
+- **New: triggers in the automation editor** (Home Assistant 2026.10 or newer). *Next departure delayed* fires when the next departure of a stop or the next connection of a route reaches a minimum delay you set; *Disruption reported* when a disruption message appears for a stop (real-time source). Both target the integration's own sensors, with the usual *for* and behaviour options, in all four languages. On older versions the entries are simply not offered.
+- **New: a blueprint, *remind me before the next departure*.** One-click import from the README: picks a stop or route sensor, the lead time in minutes and your phone, and sends line, destination, platform and delay; an action field takes your own steps with the text as `{{ message }}`.
+
 ## 1.6.0 — 2026-11-06
 
 - **New: actions with response data.** `swiss_transport.get_departures` (a stop by name or id, how many, optionally which transport types) and `swiss_transport.get_connections` (from, to, how many) answer ad-hoc questions for stops and routes that are not configured as entities — for scripts, automations and Assist LLMs. They return the same records the sensors carry, plus an `in_minutes` countdown and ISO times, and raise a readable error for an unknown stop, an unreachable service or an exhausted API quota. Field names and descriptions in all four languages; the README has an example with `response_variable`.

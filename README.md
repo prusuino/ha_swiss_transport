@@ -179,6 +179,36 @@ script:
 
 Each connection lookup counts against the API's daily quota of 1000 connection requests, shared with the saved-connection sensors; departure lookups have a far larger quota (10 080 a day). When the quota is exhausted the action raises an error instead of returning stale data.
 
+## Automations
+
+### Blueprint: remind me before the next departure
+
+The repository ships a blueprint that sends a notification to your phone a few minutes before the next departure of a stop or the next connection of a saved route: line, destination, platform and delay. Import it once, then create an automation from it and pick the sensor, the lead time and your phone:
+
+[![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fprusuino%2Fha_swiss_transport%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fdeparture_reminder.yaml)
+
+An action field takes your own steps; the text is available there as `{{ message }}`. Combine it with a time or presence condition there if it should only remind you at certain hours.
+
+### Triggers in the automation editor
+
+On Home Assistant 2026.10 or newer the integration adds two entries to the automation editor's trigger list:
+
+| Trigger | Fires when |
+|---|---|
+| **Next departure delayed** | the next departure of a stop (or the next connection of a route) reaches a **minimum delay** in minutes; it fires once when the delay is reached, not again while it stays |
+| **Disruption reported** | a disruption message appears for a stop (real-time source only) |
+
+Both target the integration's own sensors (pick an entity, the stop's device or an area); the usual *for* duration and behaviour options apply.
+
+```yaml
+triggers:
+  - trigger: swiss_transport.departure_delayed
+    target:
+      entity_id: sensor.swiss_transport_olten_zurich_hb_m3xz
+    options:
+      minimum_delay: 5
+```
+
 ## Options
 
 Via the integration's Configure dialog you can change the **number of departures/connections**, and for a station board restrict the **transport types** shown (train / tram / bus / ship / cableway). Changes apply immediately. The bundled cards follow this count automatically — the card option `rows` only needs to be set when you want a card to show *fewer* rows than the integration fetches. If you set it *higher* than the integration fetches, the card and its editor show a hint that the sensor delivers at most the configured number, so you know to raise the count in the Configure dialog instead.

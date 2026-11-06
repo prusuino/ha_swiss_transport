@@ -144,5 +144,34 @@
     "rate_limited": {
       "message": "The timetable service is refusing further requests for now (daily quota reached or too many requests)."
     }
+  },
+  "triggers": {
+    "departure_delayed": {
+      "name": "Next departure delayed",
+      "description": "Triggers when the next departure of a stop (or the next connection of a saved route) is delayed by at least the given number of minutes.",
+      "fields": {
+        "behavior": {
+          "name": "Trigger when"
+        },
+        "for": {
+          "name": "For at least"
+        },
+        "minimum_delay": {
+          "name": "Minimum delay"
+        }
+      }
+    },
+    "disruption_reported": {
+      "name": "Disruption reported",
+      "description": "Triggers when a disruption message appears for a stop (real-time source only).",
+      "fields": {
+        "behavior": {
+          "name": "Trigger when"
+        },
+        "for": {
+          "name": "For at least"
+        }
+      }
+    }
   }
 }

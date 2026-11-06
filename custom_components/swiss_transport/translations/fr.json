@@ -144,5 +144,34 @@
     "rate_limited": {
       "message": "Le service d'horaires refuse d'autres requêtes pour le moment (quota journalier atteint ou trop de requêtes)."
     }
+  },
+  "triggers": {
+    "departure_delayed": {
+      "name": "Prochain départ retardé",
+      "description": "Se déclenche quand le prochain départ d'un arrêt (ou la prochaine liaison d'un trajet enregistré) a au moins le retard indiqué en minutes.",
+      "fields": {
+        "behavior": {
+          "name": "Déclencher quand"
+        },
+        "for": {
+          "name": "Pendant au moins"
+        },
+        "minimum_delay": {
+          "name": "Retard minimal"
+        }
+      }
+    },
+    "disruption_reported": {
+      "name": "Perturbation signalée",
+      "description": "Se déclenche quand un message de perturbation apparaît pour un arrêt (source temps réel uniquement).",
+      "fields": {
+        "behavior": {
+          "name": "Déclencher quand"
+        },
+        "for": {
+          "name": "Pendant au moins"
+        }
+      }
+    }
   }
 }

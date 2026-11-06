@@ -144,5 +144,34 @@
     "rate_limited": {
       "message": "Il servizio orari al momento rifiuta altre richieste (quota giornaliera raggiunta o troppe richieste)."
     }
+  },
+  "triggers": {
+    "departure_delayed": {
+      "name": "Prossima partenza in ritardo",
+      "description": "Si attiva quando la prossima partenza di una fermata (o il prossimo collegamento di un percorso salvato) ha almeno il ritardo indicato in minuti.",
+      "fields": {
+        "behavior": {
+          "name": "Attiva quando"
+        },
+        "for": {
+          "name": "Per almeno"
+        },
+        "minimum_delay": {
+          "name": "Ritardo minimo"
+        }
+      }
+    },
+    "disruption_reported": {
+      "name": "Perturbazione segnalata",
+      "description": "Si attiva quando per una fermata appare un messaggio di perturbazione (solo con fonte in tempo reale).",
+      "fields": {
+        "behavior": {
+          "name": "Attiva quando"
+        },
+        "for": {
+          "name": "Per almeno"
+        }
+      }
+    }
   }
 }

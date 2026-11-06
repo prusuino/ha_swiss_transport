@@ -1,0 +1,84 @@
+blueprint:
+  name: Swiss Transport – remind me before the next departure
+  description: >-
+    Sends a notification to your phone a few minutes before the next
+    departure of a stop or the next connection of a saved route: line,
+    destination, platform and delay. Useful on the way out of the door;
+    combine it with a time or presence condition in the additional actions
+    if it should only remind you at certain hours.
+
+
+    The text is available in the action field as `{{ message }}`.
+  domain: automation
+  source_url: https://github.com/prusuino/ha_swiss_transport/blob/main/blueprints/automation/departure_reminder.yaml
+  author: prusuino
+  homeassistant:
+    min_version: 2025.4.0
+  input:
+    board_sensor:
+      name: Stop or route
+      description: The departure-board sensor of a stop, or the sensor of a saved connection.
+      selector:
+        entity:
+          filter:
+            - integration: swiss_transport
+              domain: sensor
+              device_class: timestamp
+    minutes_before:
+      name: Minutes before departure
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          mode: slider
+          unit_of_measurement: min
+    notify_device:
+      name: Phone
+      description: The phone (Home Assistant Companion app) that receives the notification.
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+    extra_actions:
+      name: Additional actions
+      description: Run after the notification. The notification text is available as `{{ message }}`.
+      default: []
+      selector:
+        action:
+
+mode: single
+max_exceeded: silent
+
+trigger_variables:
+  board_sensor: !input board_sensor
+  minutes_before: !input minutes_before
+
+triggers:
+  # Re-evaluated every minute (now()) and on every change of the sensor:
+  # true once the next departure lies within the reminder window.
+  - trigger: template
+    value_template: >-
+      {% set dep = states(board_sensor) | as_datetime %}
+      {{ dep is not none and 0 <= ((dep - now()).total_seconds() / 60) <= (minutes_before | int) }}
+
+variables:
+  notify_device: !input notify_device
+  attrs: "{{ states[board_sensor].attributes if states[board_sensor] is not none else {} }}"
+  item: "{{ (attrs.departures or attrs.connections or [none])[0] }}"
+  station: "{{ attrs.station_name or (attrs.from_name ~ ' → ' ~ attrs.to_name if attrs.from_name is defined else board_sensor) }}"
+  message: >-
+    {% if item is none %}No departure known.{% else %}
+    {{ states(board_sensor) | as_datetime | as_local | as_timestamp | timestamp_custom('%H:%M') }}
+    {% if item.line is defined %}{{ item.line }} to {{ item.to }}{% else %}{{ (item.products or []) | join(', ') }}{% endif %}
+    {% set platform = item.platform if item.platform is defined else item.dep_platform %}{% if platform %}, platform {{ platform }}{% endif %}
+    {% if item.delay %}, +{{ item.delay }} min{% endif %}
+    {% endif %}
+
+actions:
+  - action: "notify.mobile_app_{{ device_attr(notify_device, 'name') | slugify }}"
+    data:
+      title: "{{ station }}"
+      message: "{{ message | trim }}"
+  - sequence: !input extra_actions
