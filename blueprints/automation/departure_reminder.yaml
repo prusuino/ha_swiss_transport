@@ -3,9 +3,9 @@ blueprint:
   description: >-
     Sends a notification to your phone a few minutes before the next
     departure of a stop or the next connection of a saved route: line,
-    destination, platform and delay. Useful on the way out of the door;
-    combine it with a time or presence condition in the additional actions
-    if it should only remind you at certain hours.
+    destination, platform and delay. It reminds you of every departure that
+    comes into the window, so at a busy stop set the active hours to the time
+    you actually leave.
 
 
     The text is available in the action field as `{{ message }}`.
@@ -34,6 +34,18 @@ blueprint:
           step: 1
           mode: slider
           unit_of_measurement: min
+    active_from:
+      name: Active from
+      description: No reminders before this time.
+      default: "00:00:00"
+      selector:
+        time:
+    active_until:
+      name: Active until
+      description: No reminders after this time.
+      default: "23:59:59"
+      selector:
+        time:
     notify_device:
       name: Phone
       description: The phone (Home Assistant Companion app) that receives the notification.
@@ -56,8 +68,14 @@ trigger_variables:
   minutes_before: !input minutes_before
 
 triggers:
-  # Re-evaluated every minute (now()) and on every change of the sensor:
-  # true once the next departure lies within the reminder window.
+  # The next departure changed: at a busy stop the new one can already be
+  # inside the window, where the template below stays true and never fires.
+  - trigger: state
+    entity_id: !input board_sensor
+    not_to:
+      - unknown
+      - unavailable
+  # Re-evaluated every minute (now()): the next departure comes into the window.
   - trigger: template
     value_template: >-
       {% set dep = states(board_sensor) | as_datetime %}
@@ -68,13 +86,20 @@ variables:
   attrs: "{{ states[board_sensor].attributes if states[board_sensor] is not none else {} }}"
   item: "{{ (attrs.departures or attrs.connections or [none])[0] }}"
   station: "{{ attrs.station_name or (attrs.from_name ~ ' → ' ~ attrs.to_name if attrs.from_name is defined else board_sensor) }}"
+  platform: "{{ item.platform if item is mapping and item.platform is defined else (item.dep_platform if item is mapping else none) }}"
+  line: "{{ (item.line ~ ' to ' ~ item.to) if item is mapping and item.line is defined else ((item.products or []) | join(', ') if item is mapping else '') }}"
+  time: "{{ states(board_sensor) | as_timestamp(0) | timestamp_custom('%H:%M') }}"
   message: >-
-    {% if item is none %}No departure known.{% else %}
-    {{ states(board_sensor) | as_datetime | as_local | as_timestamp | timestamp_custom('%H:%M') }}
-    {% if item.line is defined %}{{ item.line }} to {{ item.to }}{% else %}{{ (item.products or []) | join(', ') }}{% endif %}
-    {% set platform = item.platform if item.platform is defined else item.dep_platform %}{% if platform %}, platform {{ platform }}{% endif %}
-    {% if item.delay %}, +{{ item.delay }} min{% endif %}
-    {% endif %}
+    {{ time }} {{ line }}{% if platform %}, platform {{ platform }}{% endif %}{% if item is mapping and item.delay %}, +{{ item.delay }} min{% endif %}
+
+conditions:
+  - condition: time
+    after: !input active_from
+    before: !input active_until
+  - condition: template
+    value_template: >-
+      {% set dep = states(board_sensor) | as_datetime %}
+      {{ dep is not none and 0 <= ((dep - now()).total_seconds() / 60) <= (minutes_before | int) }}
 
 actions:
   - action: "notify.mobile_app_{{ device_attr(notify_device, 'name') | slugify }}"

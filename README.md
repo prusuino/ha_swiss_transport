@@ -187,7 +187,7 @@ The repository ships a blueprint that sends a notification to your phone a few m
 
 [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fprusuino%2Fha_swiss_transport%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fdeparture_reminder.yaml)
 
-An action field takes your own steps; the text is available there as `{{ message }}`. Combine it with a time or presence condition there if it should only remind you at certain hours.
+It reminds you of every departure that comes into the window, so at a busy stop set the active hours to the time you actually leave. An action field takes your own steps; the text is available there as `{{ message }}`.
 
 ### Triggers in the automation editor
 
