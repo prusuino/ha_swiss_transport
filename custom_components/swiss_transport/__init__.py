@@ -5,17 +5,28 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
 from .const import CONF_ENTRY_TYPE, CONTROLS_OWNER, DOMAIN, ENTRY_TYPE_CONNECTION
 from .coordinator import SwissConnectionCoordinator, SwissTransportCoordinator
 from .frontend import async_serve_card
+from .services import async_register_services
 
 _LOGGER = logging.getLogger(__name__)
 
 # datetime + select provide the single, dashboard-wide time/mode controls;
 # their platforms create one entity each (guarded by CONTROLS_OWNER).
 PLATFORMS = ["sensor", "datetime", "select"]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the actions; they do not depend on a config entry."""
+    async_register_services(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

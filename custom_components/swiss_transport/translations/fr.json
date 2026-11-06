@@ -84,5 +84,65 @@
       "cannot_connect": "opentransportdata.swiss n'a pas pu être atteint, le jeton n'a donc pas pu être vérifié. Réessayez plus tard.",
       "invalid_auth": "opentransportdata.swiss a refusé le jeton temps réel (HTTP 401/403). Vérifiez le jeton dans son API Manager ou laissez le champ vide."
     }
+  },
+  "services": {
+    "get_departures": {
+      "name": "Obtenir les départs",
+      "description": "Renvoie les prochains départs d'un arrêt : ligne, destination, voie, retard et heure de départ, comme le capteur du tableau des départs.",
+      "fields": {
+        "station": {
+          "name": "Arrêt",
+          "description": "Nom de l'arrêt (le premier résultat de la recherche d'arrêts de l'horaire est utilisé) ou son identifiant numérique."
+        },
+        "limit": {
+          "name": "Nombre",
+          "description": "Nombre de départs à renvoyer."
+        },
+        "transportations": {
+          "name": "Moyens de transport",
+          "description": "Uniquement ces moyens de transport ; vide pour tous."
+        }
+      }
+    },
+    "get_connections": {
+      "name": "Obtenir les liaisons",
+      "description": "Renvoie les prochaines liaisons entre deux arrêts : départ et arrivée, durée, changements et lignes empruntées.",
+      "fields": {
+        "from": {
+          "name": "De",
+          "description": "Nom ou identifiant de l'arrêt de départ."
+        },
+        "to": {
+          "name": "À",
+          "description": "Nom ou identifiant de l'arrêt d'arrivée."
+        },
+        "limit": {
+          "name": "Nombre",
+          "description": "Nombre de liaisons à renvoyer (chaque appel compte dans le quota journalier de l'API de 1000 requêtes de liaisons)."
+        }
+      }
+    }
+  },
+  "selector": {
+    "transportations": {
+      "options": {
+        "train": "Train",
+        "tram": "Tram",
+        "bus": "Bus",
+        "ship": "Bateau",
+        "cableway": "Téléphérique"
+      }
+    }
+  },
+  "exceptions": {
+    "station_not_found": {
+      "message": "Aucun arrêt trouvé pour « {station} »."
+    },
+    "api_unreachable": {
+      "message": "Le service d'horaires est injoignable."
+    },
+    "rate_limited": {
+      "message": "Le service d'horaires refuse d'autres requêtes pour le moment (quota journalier atteint ou trop de requêtes)."
+    }
   }
 }

@@ -147,6 +147,38 @@ Replace the entity ID with your own — they are built from the stop names plus 
 
 > **After updating the integration:** the card file is served without cache headers, so a browser reload picks up the new version and your resource URL never has to change. If a new card feature still does not show up, do a hard reload (Ctrl+F5 / Cmd+Shift+R).
 
+## Actions (for scripts, automations and Assist)
+
+Two actions answer ad-hoc questions for stops and routes you have **not** configured as entities — for a script, an automation or an Assist LLM that can call actions. Both return response data; use `response_variable` to read it.
+
+| Action | Fields | Returns |
+|---|---|---|
+| `swiss_transport.get_departures` | `station` (name or station id), `limit` (1–40, default 10), `transportations` (optional list: `train`, `tram`, `bus`, `ship`, `cableway`) | `station_id`, `station_name`, `departures` — each with `line`, `category`, `number`, `to`, `operator`, `departure` (ISO time), `in_minutes`, `delay`, `platform`, `platform_changed` |
+| `swiss_transport.get_connections` | `from`, `to` (names or station ids), `limit` (1–12, default 6) | `from_name`, `to_name`, `connections` — each with `departure`, `in_minutes`, `arrival`, `duration_min`, `transfers`, `delay`, `dep_platform`, `arr_platform`, `products`, `legs`, `changes` |
+
+A stop given by name goes through the timetable's station search and the first match is used — the response tells you which stop that was. Station ids are the numeric ids the timetable API uses (the config flow shows them). An unknown stop or an unreachable service raises a readable error.
+
+```yaml
+script:
+  next_trains_home:
+    sequence:
+      - action: swiss_transport.get_connections
+        data:
+          from: "Zürich HB"
+          to: "Olten"
+          limit: 3
+        response_variable: result
+      - action: notify.mobile_app_phone
+        data:
+          message: >
+            {% for c in result.connections %}
+            {{ c.departure | as_timestamp | timestamp_custom('%H:%M') }} → {{ c.arrival | as_timestamp | timestamp_custom('%H:%M') }}
+            ({{ c.duration_min }} min, {{ c.transfers }} transfers){% if c.delay %}, +{{ c.delay }} min{% endif %}
+            {% endfor %}
+```
+
+Each connection lookup counts against the API's daily quota of 1000 connection requests, shared with the saved-connection sensors; departure lookups have a far larger quota (10 080 a day). When the quota is exhausted the action raises an error instead of returning stale data.
+
 ## Options
 
 Via the integration's Configure dialog you can change the **number of departures/connections**, and for a station board restrict the **transport types** shown (train / tram / bus / ship / cableway). Changes apply immediately. The bundled cards follow this count automatically — the card option `rows` only needs to be set when you want a card to show *fewer* rows than the integration fetches. If you set it *higher* than the integration fetches, the card and its editor show a hint that the sensor delivers at most the configured number, so you know to raise the count in the Configure dialog instead.

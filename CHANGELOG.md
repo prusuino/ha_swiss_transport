@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.0 — 2026-11-06
+
+- **New: actions with response data.** `swiss_transport.get_departures` (a stop by name or id, how many, optionally which transport types) and `swiss_transport.get_connections` (from, to, how many) answer ad-hoc questions for stops and routes that are not configured as entities — for scripts, automations and Assist LLMs. They return the same records the sensors carry, plus an `in_minutes` countdown and ISO times, and raise a readable error for an unknown stop, an unreachable service or an exhausted API quota. Field names and descriptions in all four languages; the README has an example with `response_variable`.
+
 ## 1.5.0 — 2026-11-05
 
 The cards now respect the count configured in the integration. The card improvements in this release were contributed by @borismacek in #3 — thank you.

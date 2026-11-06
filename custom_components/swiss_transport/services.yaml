@@ -1,0 +1,48 @@
+get_departures:
+  fields:
+    station:
+      required: true
+      example: "Olten"
+      selector:
+        text:
+    limit:
+      required: false
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 40
+          mode: box
+    transportations:
+      required: false
+      selector:
+        select:
+          multiple: true
+          translation_key: transportations
+          options:
+            - train
+            - tram
+            - bus
+            - ship
+            - cableway
+
+get_connections:
+  fields:
+    from:
+      required: true
+      example: "Olten"
+      selector:
+        text:
+    to:
+      required: true
+      example: "Zürich HB"
+      selector:
+        text:
+    limit:
+      required: false
+      default: 6
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box

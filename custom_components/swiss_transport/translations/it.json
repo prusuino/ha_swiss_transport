@@ -84,5 +84,65 @@
       "cannot_connect": "Impossibile raggiungere opentransportdata.swiss, quindi il token non è stato verificato. Riprova più tardi.",
       "invalid_auth": "opentransportdata.swiss ha rifiutato il token in tempo reale (HTTP 401/403). Controlla il token nel suo API Manager o lascia il campo vuoto."
     }
+  },
+  "services": {
+    "get_departures": {
+      "name": "Ottieni partenze",
+      "description": "Restituisce le prossime partenze da una fermata: linea, destinazione, binario, ritardo e orario di partenza, come mostra il sensore del tabellone.",
+      "fields": {
+        "station": {
+          "name": "Fermata",
+          "description": "Nome della fermata (viene usato il primo risultato della ricerca fermate dell'orario) o il suo ID numerico."
+        },
+        "limit": {
+          "name": "Numero",
+          "description": "Quante partenze restituire."
+        },
+        "transportations": {
+          "name": "Mezzi di trasporto",
+          "description": "Solo questi mezzi di trasporto; vuoto per tutti."
+        }
+      }
+    },
+    "get_connections": {
+      "name": "Ottieni collegamenti",
+      "description": "Restituisce i prossimi collegamenti tra due fermate: partenza e arrivo, durata, cambi e linee utilizzate.",
+      "fields": {
+        "from": {
+          "name": "Da",
+          "description": "Nome o ID della fermata di partenza."
+        },
+        "to": {
+          "name": "A",
+          "description": "Nome o ID della fermata di destinazione."
+        },
+        "limit": {
+          "name": "Numero",
+          "description": "Quanti collegamenti restituire (ogni chiamata conta nella quota giornaliera dell'API di 1000 richieste di collegamento)."
+        }
+      }
+    }
+  },
+  "selector": {
+    "transportations": {
+      "options": {
+        "train": "Treno",
+        "tram": "Tram",
+        "bus": "Bus",
+        "ship": "Battello",
+        "cableway": "Funivia"
+      }
+    }
+  },
+  "exceptions": {
+    "station_not_found": {
+      "message": "Nessuna fermata trovata per \"{station}\"."
+    },
+    "api_unreachable": {
+      "message": "Il servizio orari non è raggiungibile."
+    },
+    "rate_limited": {
+      "message": "Il servizio orari al momento rifiuta altre richieste (quota giornaliera raggiunta o troppe richieste)."
+    }
   }
 }

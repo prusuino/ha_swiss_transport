@@ -84,5 +84,65 @@
       "cannot_connect": "opentransportdata.swiss could not be reached, so the token could not be checked. Try again later.",
       "invalid_auth": "opentransportdata.swiss rejected the real-time token (HTTP 401/403). Check the token in its API Manager, or leave the field empty."
     }
+  },
+  "services": {
+    "get_departures": {
+      "name": "Get departures",
+      "description": "Returns the next departures at a stop: line, destination, platform, delay and departure time, as the departure-board sensor shows them.",
+      "fields": {
+        "station": {
+          "name": "Stop",
+          "description": "Name of the stop (the first match of the timetable's station search is used) or its numeric station id."
+        },
+        "limit": {
+          "name": "Number",
+          "description": "How many departures to return."
+        },
+        "transportations": {
+          "name": "Transport types",
+          "description": "Only these types of transport; empty for all."
+        }
+      }
+    },
+    "get_connections": {
+      "name": "Get connections",
+      "description": "Returns the next connections between two stops: departure and arrival, duration, transfers and the lines used.",
+      "fields": {
+        "from": {
+          "name": "From",
+          "description": "Name or station id of the departure stop."
+        },
+        "to": {
+          "name": "To",
+          "description": "Name or station id of the destination stop."
+        },
+        "limit": {
+          "name": "Number",
+          "description": "How many connections to return (each call counts against the API's daily quota of 1000 connection requests)."
+        }
+      }
+    }
+  },
+  "selector": {
+    "transportations": {
+      "options": {
+        "train": "Train",
+        "tram": "Tram",
+        "bus": "Bus",
+        "ship": "Ship",
+        "cableway": "Cableway"
+      }
+    }
+  },
+  "exceptions": {
+    "station_not_found": {
+      "message": "No stop found for \"{station}\"."
+    },
+    "api_unreachable": {
+      "message": "The timetable service could not be reached."
+    },
+    "rate_limited": {
+      "message": "The timetable service is refusing further requests for now (daily quota reached or too many requests)."
+    }
   }
 }

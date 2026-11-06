@@ -84,5 +84,65 @@
       "cannot_connect": "opentransportdata.swiss konnte nicht erreicht werden, der Token konnte deshalb nicht geprüft werden. Versuche es später noch einmal.",
       "invalid_auth": "opentransportdata.swiss hat den Echtzeit-Token abgelehnt (HTTP 401/403). Prüfe den Token im dortigen API Manager oder lass das Feld leer."
     }
+  },
+  "services": {
+    "get_departures": {
+      "name": "Abfahrten abrufen",
+      "description": "Liefert die nächsten Abfahrten an einer Haltestelle: Linie, Ziel, Gleis, Verspätung und Abfahrtszeit, wie sie der Abfahrtstafel-Sensor zeigt.",
+      "fields": {
+        "station": {
+          "name": "Haltestelle",
+          "description": "Name der Haltestelle (der erste Treffer der Haltestellensuche des Fahrplans wird verwendet) oder ihre numerische Stations-ID."
+        },
+        "limit": {
+          "name": "Anzahl",
+          "description": "Wie viele Abfahrten zurückgegeben werden."
+        },
+        "transportations": {
+          "name": "Verkehrsmittel",
+          "description": "Nur diese Verkehrsmittel; leer für alle."
+        }
+      }
+    },
+    "get_connections": {
+      "name": "Verbindungen abrufen",
+      "description": "Liefert die nächsten Verbindungen zwischen zwei Haltestellen: Abfahrt und Ankunft, Dauer, Umstiege und benutzte Linien.",
+      "fields": {
+        "from": {
+          "name": "Von",
+          "description": "Name oder Stations-ID der Abfahrtshaltestelle."
+        },
+        "to": {
+          "name": "Nach",
+          "description": "Name oder Stations-ID der Zielhaltestelle."
+        },
+        "limit": {
+          "name": "Anzahl",
+          "description": "Wie viele Verbindungen zurückgegeben werden (jeder Aufruf zählt zum Tageskontingent der API von 1000 Verbindungsabfragen)."
+        }
+      }
+    }
+  },
+  "selector": {
+    "transportations": {
+      "options": {
+        "train": "Zug",
+        "tram": "Tram",
+        "bus": "Bus",
+        "ship": "Schiff",
+        "cableway": "Seilbahn"
+      }
+    }
+  },
+  "exceptions": {
+    "station_not_found": {
+      "message": "Keine Haltestelle für „{station}“ gefunden."
+    },
+    "api_unreachable": {
+      "message": "Der Fahrplandienst ist nicht erreichbar."
+    },
+    "rate_limited": {
+      "message": "Der Fahrplandienst nimmt zurzeit keine weiteren Anfragen an (Tageskontingent erreicht oder zu viele Anfragen)."
+    }
   }
 }
