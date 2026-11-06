@@ -3,8 +3,10 @@ Download diagnostics): what the entry is configured with, what the
 coordinators last fetched and the current state of the entry's entities, so
 an issue report can carry the facts instead of a description of them.
 
-Coordinates, credentials and other personal values are redacted; long lists
-and texts are cut, the counts are kept.
+Coordinates, credentials and the entry's title, unique id and name are
+redacted; of the last error only the type is kept, its text can repeat a
+request URL. Entity ids and names stay readable and can contain a place name.
+Long lists and texts are cut, the counts are kept.
 """
 from __future__ import annotations
 
@@ -56,12 +58,20 @@ def _compact(value: Any, depth: int = 0) -> Any:
     return str(value)
 
 
+def _entry_values(values: Any) -> dict[str, Any]:
+    """Entry data or options; names the user typed can describe a place."""
+    return {
+        k: REDACTED if k in ("name", "location") and v not in (None, "") else v
+        for k, v in _compact(dict(values)).items()
+    }
+
+
 def _coordinator_info(coordinator: Any) -> dict[str, Any]:
     interval = getattr(coordinator, "update_interval", None)
     exception = getattr(coordinator, "last_exception", None)
     return {
         "last_update_success": getattr(coordinator, "last_update_success", None),
-        "last_exception": f"{type(exception).__name__}: {exception}" if exception else None,
+        "last_exception": type(exception).__name__ if exception else None,
         "update_interval_seconds": interval.total_seconds() if isinstance(interval, timedelta) else interval,
         "data": _compact(getattr(coordinator, "data", None)),
     }
@@ -89,13 +99,13 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
         )
     return {
         "entry": {
-            "title": entry.title,
+            "title": REDACTED,
             "version": entry.version,
             "minor_version": entry.minor_version,
-            "unique_id": entry.unique_id,
+            "unique_id": REDACTED if entry.unique_id else None,
             "state": str(entry.state),
-            "data": _compact(dict(entry.data)),
-            "options": _compact(dict(entry.options)),
+            "data": _entry_values(entry.data),
+            "options": _entry_values(entry.options),
         },
         "coordinators": {name: _coordinator_info(c) for name, c in _coordinators(hass, entry).items() if c is not None},
         "entities": entities,
