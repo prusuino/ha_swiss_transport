@@ -209,6 +209,19 @@ triggers:
       minimum_delay: 5
 ```
 
+### Conditions in the automation editor
+
+On Home Assistant 2026.11 or newer the integration also adds two conditions: **Next departure is delayed** (by at least a **minimum delay** in minutes) and **Disruption reported** (real-time source only). They target the same sensors as the triggers.
+
+```yaml
+conditions:
+  - condition: swiss_transport.is_departure_delayed
+    target:
+      entity_id: sensor.swiss_transport_olten_zurich_hb_m3xz
+    options:
+      minimum_delay: 3
+```
+
 ## Options
 
 Via the integration's Configure dialog you can change the **number of departures/connections**, and for a station board restrict the **transport types** shown (train / tram / bus / ship / cableway). Changes apply immediately. The bundled cards follow this count automatically — the card option `rows` only needs to be set when you want a card to show *fewer* rows than the integration fetches. If you set it *higher* than the integration fetches, the card and its editor show a hint that the sensor delivers at most the configured number, so you know to raise the count in the Configure dialog instead.

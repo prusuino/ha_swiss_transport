@@ -173,5 +173,34 @@
         }
       }
     }
+  },
+  "conditions": {
+    "is_departure_delayed": {
+      "name": "Prossima partenza è in ritardo",
+      "description": "Soddisfatta finché la prossima partenza di una fermata (o la prossima connessione di un percorso salvato) ha almeno il ritardo indicato in minuti.",
+      "fields": {
+        "behavior": {
+          "name": "Condizione soddisfatta se"
+        },
+        "for": {
+          "name": "Per almeno"
+        },
+        "minimum_delay": {
+          "name": "Ritardo minimo (minuti)"
+        }
+      }
+    },
+    "has_disruption": {
+      "name": "Perturbazione segnalata",
+      "description": "Soddisfatta finché per la fermata è segnalata una perturbazione (solo con fonte in tempo reale).",
+      "fields": {
+        "behavior": {
+          "name": "Condizione soddisfatta se"
+        },
+        "for": {
+          "name": "Per almeno"
+        }
+      }
+    }
   }
 }

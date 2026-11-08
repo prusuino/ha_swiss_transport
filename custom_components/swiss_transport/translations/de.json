@@ -173,5 +173,34 @@
         }
       }
     }
+  },
+  "conditions": {
+    "is_departure_delayed": {
+      "name": "Nächste Abfahrt ist verspätet",
+      "description": "Erfüllt, solange die nächste Abfahrt einer Haltestelle (oder die nächste Verbindung einer gespeicherten Strecke) mindestens die angegebene Anzahl Minuten Verspätung hat.",
+      "fields": {
+        "behavior": {
+          "name": "Bedingung erfüllt wenn"
+        },
+        "for": {
+          "name": "Mindestens für"
+        },
+        "minimum_delay": {
+          "name": "Mindestverspätung (Minuten)"
+        }
+      }
+    },
+    "has_disruption": {
+      "name": "Störung gemeldet",
+      "description": "Erfüllt, solange für die Haltestelle eine Störungsmeldung vorliegt (nur mit Echtzeitquelle).",
+      "fields": {
+        "behavior": {
+          "name": "Bedingung erfüllt wenn"
+        },
+        "for": {
+          "name": "Mindestens für"
+        }
+      }
+    }
   }
 }

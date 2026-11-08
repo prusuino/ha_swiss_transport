@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.0 — 2026-11-08
+
+- **New: conditions in the automation editor** (Home Assistant 2026.11 or newer). *Next departure is delayed* (by at least a minimum delay in minutes) and *Disruption reported* mirror the two triggers for use as conditions. In all four languages; on older versions the entries are simply not offered.
+
 ## 1.8.2 — 2026-11-06
 
 - **Fixed: the blueprint *remind me before the next departure* stayed silent at busy stops.** With a departure always inside the window it never fired; it now reminds you of every departure that comes into the window. New optional inputs *Active from* and *Active until* limit the hours; the former tip to add a condition in the action field could not have worked, because those actions run after the notification. Re-import the blueprint to get the fix (Settings → Automations & scenes → Blueprints → the blueprint's menu → Re-import).

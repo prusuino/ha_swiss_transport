@@ -173,5 +173,34 @@
         }
       }
     }
+  },
+  "conditions": {
+    "is_departure_delayed": {
+      "name": "Next departure is delayed",
+      "description": "Passes while the next departure of a stop (or the next connection of a saved route) is delayed by at least the given number of minutes.",
+      "fields": {
+        "behavior": {
+          "name": "Condition passes when"
+        },
+        "for": {
+          "name": "For at least"
+        },
+        "minimum_delay": {
+          "name": "Minimum delay (minutes)"
+        }
+      }
+    },
+    "has_disruption": {
+      "name": "Disruption reported",
+      "description": "Passes while a disruption message is reported for the stop (real-time source only).",
+      "fields": {
+        "behavior": {
+          "name": "Condition passes when"
+        },
+        "for": {
+          "name": "For at least"
+        }
+      }
+    }
   }
 }

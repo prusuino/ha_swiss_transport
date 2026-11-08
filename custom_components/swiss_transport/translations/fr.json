@@ -173,5 +173,34 @@
         }
       }
     }
+  },
+  "conditions": {
+    "is_departure_delayed": {
+      "name": "Prochain départ est retardé",
+      "description": "Remplie tant que le prochain départ d'un arrêt (ou la prochaine correspondance d'un trajet enregistré) a au moins le retard indiqué en minutes.",
+      "fields": {
+        "behavior": {
+          "name": "Condition remplie si"
+        },
+        "for": {
+          "name": "Pendant au moins"
+        },
+        "minimum_delay": {
+          "name": "Retard minimal (minutes)"
+        }
+      }
+    },
+    "has_disruption": {
+      "name": "Perturbation signalée",
+      "description": "Remplie tant qu'un message de perturbation est signalé pour l'arrêt (source temps réel uniquement).",
+      "fields": {
+        "behavior": {
+          "name": "Condition remplie si"
+        },
+        "for": {
+          "name": "Pendant au moins"
+        }
+      }
+    }
   }
 }

@@ -6,5 +6,13 @@
     "disruption_reported": {
       "trigger": "mdi:alert-octagon-outline"
     }
+  },
+  "conditions": {
+    "is_departure_delayed": {
+      "condition": "mdi:clock-alert-outline"
+    },
+    "has_disruption": {
+      "condition": "mdi:alert"
+    }
   }
 }
