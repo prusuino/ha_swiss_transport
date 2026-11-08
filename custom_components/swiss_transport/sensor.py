@@ -49,7 +49,7 @@ def _suggested_entity_id(entry: ConfigEntry, *names: str) -> str:
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_CONNECTION:
         sensor = SwissConnectionSensor(hass, coordinator, entry)
     else:

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.10.0 — 2026-11-09
+
+- **Quality scale Bronze.** The integration keeps its coordinator in the config entry's runtime data, the README gained removal instructions and a quality-scale section, and the manifest declares the **bronze** tier. A test suite (board, connection and OJP real-time parsers, rate-limit backoff, config flow with departure board, connection, duplicate, rejected token and reconfigure) runs on every push. No change to entities or configuration.
+
 ## 1.9.0 — 2026-11-08
 
 - **New: repair notice** under **Settings → Repairs** when transport.opendata.ch has not answered for three refreshes in a row; it clears itself with the next successful refresh. In all four languages.

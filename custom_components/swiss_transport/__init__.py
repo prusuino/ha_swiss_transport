@@ -11,6 +11,8 @@ from homeassistant.loader import async_get_integration
 
 from .const import CONF_ENTRY_TYPE, CONTROLS_OWNER, DOMAIN, ENTRY_TYPE_CONNECTION
 from .coordinator import SwissConnectionCoordinator, SwissTransportCoordinator
+
+type SwissTransportConfigEntry = ConfigEntry[SwissTransportCoordinator | SwissConnectionCoordinator]
 from .issues import async_clear_entry_issues
 from .frontend import async_serve_card
 from .services import async_register_services
@@ -30,7 +32,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: SwissTransportConfigEntry) -> bool:
     try:
         integration = await async_get_integration(hass, DOMAIN)
         await async_serve_card(hass, str(integration.version))
@@ -43,22 +45,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator = SwissTransportCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
 
 
-async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    coordinator: SwissTransportCoordinator = hass.data[DOMAIN][entry.entry_id]
-    await coordinator.async_request_refresh()
+async def _async_options_updated(hass: HomeAssistant, entry: SwissTransportConfigEntry) -> None:
+    await entry.runtime_data.async_request_refresh()
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: SwissTransportConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         async_clear_entry_issues(hass, entry.entry_id)
-        hass.data[DOMAIN].pop(entry.entry_id, None)
         # If this entry owned the shared controls, release ownership so another
         # entry recreates them on its next reload / the next restart.
         if hass.data.get(CONTROLS_OWNER) == entry.entry_id:

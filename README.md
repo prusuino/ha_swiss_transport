@@ -305,6 +305,16 @@ The integration is listed in the Marketplace default catalog (formerly the HACS 
 
 **Changing an entry later.** Open the entry's menu (⋮) under **Settings → Devices & Services** and choose **Reconfigure**: a departure board runs the stop search again, a connection the origin and destination search. The entry keeps its id and its options; the board or connection entity is recreated when the stop or route changes.
 
+## Removal
+
+1. **Settings → Devices & services → Swiss Transport**, open the entry's menu (⋮) and choose **Delete**; repeat for every board and connection. The entities, their history and the device go with the entry. The shared time and mode controls disappear with the last entry.
+2. If you registered the bundled card as a dashboard resource, remove it under **Settings → Dashboards → Resources**.
+3. Remove the integration itself in the **Marketplace** (or HACS), then restart Home Assistant. With a manual installation, delete `custom_components/swiss_transport` instead.
+
+## Quality scale
+
+The integration declares **Bronze** on the [Home Assistant integration quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/): a config flow with tests, unique ids for every entity, brand images, installation and removal instructions, a connection check before an entry is created, no duplicate entries, runtime data on the config entry, and the other Bronze rules. The tier is self-assessed, as it is for every custom integration; the per-rule status, including what is still open for Silver and Gold, is in `custom_components/swiss_transport/quality_scale.yaml`.
+
 ## Notes
 
 - **Repairs.** When transport.opendata.ch has not answered for three refreshes in a row (including a rate limit), a notice appears under **Settings → Repairs**; it disappears on its own with the next successful refresh.

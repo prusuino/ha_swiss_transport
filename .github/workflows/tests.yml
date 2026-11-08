@@ -1,0 +1,27 @@
+name: Tests
+
+# Runs the unit and config-flow tests against the Home Assistant test
+# harness for custom integrations (pytest-homeassistant-custom-component).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install the test harness
+        run: python -m pip install --upgrade pip pytest-homeassistant-custom-component
+
+      - name: Run the tests
+        run: python -m pytest -q
