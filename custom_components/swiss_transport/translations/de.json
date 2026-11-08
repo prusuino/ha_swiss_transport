@@ -47,7 +47,8 @@
       }
     },
     "abort": {
-      "already_configured": "Diese Haltestelle oder Verbindung ist bereits konfiguriert."
+      "already_configured": "Diese Haltestelle oder Verbindung ist bereits konfiguriert.",
+      "reconfigure_successful": "Der Eintrag wurde aktualisiert und die Integration neu geladen."
     },
     "error": {
       "cannot_connect": "transport.opendata.ch oder opentransportdata.swiss konnte nicht erreicht werden.",

@@ -47,7 +47,8 @@
       }
     },
     "abort": {
-      "already_configured": "Cet arrêt ou cette liaison est déjà configuré."
+      "already_configured": "Cet arrêt ou cette liaison est déjà configuré.",
+      "reconfigure_successful": "L'entrée a été mise à jour et l'intégration rechargée."
     },
     "error": {
       "cannot_connect": "transport.opendata.ch ou opentransportdata.swiss n'a pas pu être atteint.",

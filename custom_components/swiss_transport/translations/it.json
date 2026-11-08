@@ -47,7 +47,8 @@
       }
     },
     "abort": {
-      "already_configured": "Questa fermata o questo collegamento è già configurato."
+      "already_configured": "Questa fermata o questo collegamento è già configurato.",
+      "reconfigure_successful": "La voce è stata aggiornata e l'integrazione ricaricata."
     },
     "error": {
       "cannot_connect": "Impossibile raggiungere transport.opendata.ch o opentransportdata.swiss.",

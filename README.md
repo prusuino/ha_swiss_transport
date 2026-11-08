@@ -303,6 +303,8 @@ The integration is listed in the Marketplace default catalog (formerly the HACS 
    - **Connection (from → to)** — type both station names, pick the exact stops, set how many connections to show. Great for a daily commute (add the reverse direction as a second connection for the way back).
 3. Done — add the integration again for another station or route.
 
+**Changing an entry later.** Open the entry's menu (⋮) under **Settings → Devices & Services** and choose **Reconfigure**: a departure board runs the stop search again, a connection the origin and destination search. The entry keeps its id and its options; the board or connection entity is recreated when the stop or route changes.
+
 ## Notes
 
 - Only relevant for stops within Switzerland (and directly connected cross-border stations covered by the Swiss timetable).
