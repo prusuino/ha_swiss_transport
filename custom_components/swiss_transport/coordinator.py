@@ -16,6 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .issues import IssueReporter
 from .const import (
     API_BASE,
     CONF_LIMIT,
@@ -546,6 +547,7 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
             update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS),
         )
         self._entry = entry
+        self.issues = IssueReporter(hass, entry.entry_id)
         self._address: str | None = None  # resolved once, then cached
         # True after the OJP token was rejected and the warning was logged;
         # cleared as soon as the token is accepted again.
@@ -564,7 +566,9 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
             )
         except Exception as err:
             _apply_rate_limit_backoff(self, err, UPDATE_INTERVAL_SECONDS)
+            self.issues.failure("unreachable", {"host": "transport.opendata.ch"})
             raise UpdateFailed(f"transport.opendata.ch unreachable: {err}") from err
+        self.issues.clear("unreachable")
         self.update_interval = timedelta(seconds=UPDATE_INTERVAL_SECONDS)
 
         # Optional real-time enrichment (opentransportdata.swiss OJP). Strictly
@@ -616,6 +620,7 @@ class SwissConnectionCoordinator(DataUpdateCoordinator[dict]):
             update_interval=timedelta(seconds=CONNECTION_UPDATE_INTERVAL_SECONDS),
         )
         self._entry = entry
+        self.issues = IssueReporter(hass, entry.entry_id)
 
     async def _async_update_data(self) -> dict:
         from .const import (  # local import avoids a cycle at module load
@@ -633,6 +638,8 @@ class SwissConnectionCoordinator(DataUpdateCoordinator[dict]):
             )
         except Exception as err:
             _apply_rate_limit_backoff(self, err, CONNECTION_UPDATE_INTERVAL_SECONDS)
+            self.issues.failure("unreachable", {"host": "transport.opendata.ch"})
             raise UpdateFailed(f"transport.opendata.ch unreachable: {err}") from err
+        self.issues.clear("unreachable")
         self.update_interval = timedelta(seconds=CONNECTION_UPDATE_INTERVAL_SECONDS)
         return result

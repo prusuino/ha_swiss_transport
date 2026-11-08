@@ -11,6 +11,7 @@ from homeassistant.loader import async_get_integration
 
 from .const import CONF_ENTRY_TYPE, CONTROLS_OWNER, DOMAIN, ENTRY_TYPE_CONNECTION
 from .coordinator import SwissConnectionCoordinator, SwissTransportCoordinator
+from .issues import async_clear_entry_issues
 from .frontend import async_serve_card
 from .services import async_register_services
 
@@ -56,6 +57,7 @@ async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> Non
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
+        async_clear_entry_issues(hass, entry.entry_id)
         hass.data[DOMAIN].pop(entry.entry_id, None)
         # If this entry owned the shared controls, release ownership so another
         # entry recreates them on its next reload / the next restart.

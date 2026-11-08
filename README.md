@@ -307,6 +307,7 @@ The integration is listed in the Marketplace default catalog (formerly the HACS 
 
 ## Notes
 
+- **Repairs.** When transport.opendata.ch has not answered for three refreshes in a row (including a rate limit), a notice appears under **Settings → Repairs**; it disappears on its own with the next successful refresh.
 - Only relevant for stops within Switzerland (and directly connected cross-border stations covered by the Swiss timetable).
 - transport.opendata.ch is a free community service with daily rate limits (1000 connection queries, 10080 station board queries per day) — the integration polls conservatively (station boards ~90 s, saved connections ~5 min) and backs off automatically after an HTTP 429. Note that the cards' timetable-browsing mode queries the API directly from your browser and counts towards the same per-IP quota. Without the optional real-time source, delays depend on that feed's own reporting and cancellations are not shown.
 - Since the DST change on 2026-10-25 the `/stationboard` endpoint of transport.opendata.ch has been serving departure boards one hour late (connections are not affected; reported as [OpendataCH/Transport#224](https://github.com/OpendataCH/Transport/issues/224)). Version 1.4.1 works around this: when a board's first row is more than 45 minutes ahead, the integration and the card ask once more for the window one hour earlier and drop the rows that have already left. Once the API is correct again the extra request simply returns the same rows, so nothing changes for you.

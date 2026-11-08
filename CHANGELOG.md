@@ -2,6 +2,7 @@
 
 ## 1.9.0 — 2026-11-08
 
+- **New: repair notice** under **Settings → Repairs** when transport.opendata.ch has not answered for three refreshes in a row; it clears itself with the next successful refresh. In all four languages.
 - **New: reconfigure an entry in place.** The entry's menu under **Settings → Devices & services** now offers *Reconfigure*, which runs the same steps as the setup: another stop for a departure board, another origin or destination for a connection. The entry keeps its id and the user's options; entities of a selection that stays keep their ids and history, entities of one that is replaced are recreated. A change that would duplicate another entry is refused.
 - **New: conditions in the automation editor** (Home Assistant 2026.11 or newer). *Next departure is delayed* (by at least a minimum delay in minutes) and *Disruption reported* mirror the two triggers for use as conditions. In all four languages; on older versions the entries are simply not offered.
 
