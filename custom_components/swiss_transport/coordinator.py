@@ -436,6 +436,7 @@ def _parse_connection(con: dict) -> dict | None:
                 "line": line,
                 "category": cat,
                 "number": num,
+                "operator": journey.get("operator"),
                 "to": journey.get("to"),
                 "from_name": (sec_dep.get("station") or {}).get("name"),
                 "from_platform": sec_dep.get("platform"),

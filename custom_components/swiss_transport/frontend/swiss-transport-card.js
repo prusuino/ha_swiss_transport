@@ -79,19 +79,61 @@ function transportMode(category) {
 }
 
 const MODE_ICON = {
-  train: "mdi:train",
-  tram: "mdi:tram",
-  bus: "mdi:bus",
-  ship: "mdi:ferry",
-  cableway: "mdi:gondola",
+  train: "/swiss_transport_files/mode-train.svg",
+  tram: "/swiss_transport_files/mode-tram.svg",
+  bus: "/swiss_transport_files/mode-bus.svg",
+  ship: "/swiss_transport_files/mode-ship.svg",
+  cableway: "/swiss_transport_files/mode-cableway.svg",
 };
+
 const MODE_COLOR = {
   train: "#2b6cb0",
   tram: "#2e7d32",
   bus: "#00558c",
   ship: "#0277bd",
-  cableway: "#6a1b9a",
+  cableway: "#5a5a5a",
 };
+
+// Per-line colors are loaded at runtime from a separate JSON file so they can
+// be regenerated independently (see scripts/generate_line_colors.py).
+let _lineColorData = null;
+let _lineColorFetchStarted = false;
+const _lineColorCallbacks = [];
+function ensureLineColorData(cb) {
+  if (_lineColorData) {
+    if (cb) cb();
+    return;
+  }
+  if (cb) _lineColorCallbacks.push(cb);
+  if (!_lineColorFetchStarted) {
+    _lineColorFetchStarted = true;
+    fetch("/swiss_transport_files/line-colors.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        _lineColorData = data || null;
+        const cbs = _lineColorCallbacks.splice(0);
+        cbs.forEach((fn) => {
+          try {
+            fn();
+          } catch (e) {}
+        });
+      })
+      .catch(() => {
+        _lineColorData = null;
+        const cbs = _lineColorCallbacks.splice(0);
+        cbs.forEach((fn) => {
+          try {
+            fn();
+          } catch (e) {}
+        });
+      });
+  }
+}
+
+/* Per-line colors sourced from Traewelling/line-colors (line-colors-CH.csv):
+ * real operator line colors for Swiss buses and trams. Keyed by a canonical
+ * operator code (derived from the API's operator field) -> { line: {bg, fg,
+ * border?} }. */
 
 /* Line-badge product class, following the common Swiss departure-board
  * styling: the S-Bahn gets a white chip with a border and dark text, the
@@ -104,6 +146,73 @@ function productClass(category) {
     return "ir";
   }
   return "other";
+}
+
+/* Canonical operator code from the API's operator field, so it can be matched
+ * against the line-colors tables above. */
+function canonicalOperator(op) {
+  const raw = String(op || "").trim();
+  if (!raw) return null;
+  const code = raw.split(/\s+/)[0].toUpperCase();
+  if (code.startsWith("TRN")) return "TRN";
+  if (code.startsWith("VBZ")) return "VBZ";
+  if (code === "VLM") return "VLM";
+  if (code === "AB" || code.startsWith("AB-")) return "AB";
+  if (code === "AAGL") return "AAGL";
+  if (code === "BLT") return "BLT";
+  if (code === "BVB") return "BVB";
+  if (code === "VBSH" || code.startsWith("VBSH")) return "VBSH";
+  if (code === "PAG") return "PAG";
+  return null;
+}
+
+/* Look up a per-line color for a bus/tram departure. Returns
+ * { bg, fg, border } or null when no color is known. */
+function lineColor(dep, stationName) {
+  if (!_lineColorData) return null;
+  const op = canonicalOperator(dep && dep.operator);
+  const line = String((dep && dep.line) || "").trim();
+  if (!op || !line) return null;
+  if (op === "PAG") {
+    // PostAuto: Jura network uses varied colors, the Basel region is yellow.
+    const nm = String(stationName || "").toLowerCase();
+    const jura = /del[eé]mont|porrentruy|saignel[eé]gier|moutier|bassecourt|glovelier|tavannes|sonceboz/.test(nm);
+    const tbl = jura ? _lineColorData.LINE_COLORS_PAG_MOBIJU : _lineColorData.LINE_COLORS_PAG_TNW;
+    return tbl && tbl[line] ? tbl[line] : null;
+  }
+  const tbl = _lineColorData.LINE_COLORS && _lineColorData.LINE_COLORS[op];
+  return tbl && tbl[line] ? tbl[line] : null;
+}
+
+/* Detect dark mode from Home Assistant's own state: the root element gets a
+ * "dark" class, and hass.themes.darkMode is set accordingly. */
+function isDarkTheme(el) {
+  try {
+    if (typeof document !== "undefined" && document.documentElement &&
+        document.documentElement.classList && document.documentElement.classList.contains("dark")) {
+      return true;
+    }
+  } catch (e) {}
+  try {
+    if (el && el._hass && el._hass.themes && el._hass.themes.darkMode === true) {
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+/* True when a hex color is dark enough to need a light border for contrast. */
+function isDarkColor(hex) {
+  const h = String(hex || "").trim().replace("#", "");
+  if (h.length !== 3 && h.length !== 6) return false;
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const r = parseInt(full.substr(0, 2), 16);
+  const g = parseInt(full.substr(2, 2), 16);
+  const b = parseInt(full.substr(4, 2), 16);
+  // Relative luminance (sRGB). Only near-black backgrounds get a light
+  // border for contrast; dark (but not black) colors keep their own look.
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return lum < 0.12;
 }
 
 // Labels for the "timetable mode" banner shown when a card is following the
@@ -145,6 +254,7 @@ function parseBoardEntry(entry) {
     category,
     number,
     to: entry.to,
+    operator: entry.operator,
     departure: stop.departure,
     departure_ts: parseInt(ts, 10),
     delay: typeof stop.delay === "number" ? stop.delay : null,
@@ -180,6 +290,9 @@ function parseConnectionEntry(con) {
     const sa = sec.arrival || {};
     legs.push({
       line,
+      category: cat,
+      number: num,
+      operator: j.operator,
       from_name: (sd.station || {}).name,
       from_platform: sd.platform,
       to_name: (sa.station || {}).name,
@@ -315,6 +428,13 @@ class SwissTransportCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     this._maybeFetch();
+    if (!_lineColorData && !this._lcPending) {
+      this._lcPending = true;
+      ensureLineColorData(() => {
+        this._lcPending = false;
+        this._render();
+      });
+    }
     this._render();
   }
 
@@ -458,16 +578,35 @@ class SwissTransportCard extends HTMLElement {
       ${anyOcc ? `<div class="cell hdr occ">${HDR_OCC[lang] || HDR_OCC.en}</div>` : ""}
       <div class="cell hdr">${HDR_INFO[lang] || HDR_INFO.en}</div>`;
 
+    const stationName = (st && st.attributes && st.attributes.station_name) || title || "";
+    const darkMode = isDarkTheme(this);
     const rows = deps
       .map((d) => {
         const m = transportMode(d.category);
         const pcls = productClass(d.category);
-        // Train line reads "IR 55" / "S23"; bus/tram badge is just the line.
+        // Train line reads "IR 55" / "S 15"; bus/tram badge is just the line.
+        // Run ids come back as zero-padded strings (e.g. "000904") for some
+        // IC/EC/IR services, so strip leading zeros for a readable badge.
+        const trainNum = /^\d+$/.test(String(d.number || ""))
+          ? String(parseInt(d.number, 10))
+          : String(d.number || "").trim();
         const badgeText =
           m === "train" && d.category && d.number
-            ? `${d.category} ${d.number}`
+            ? `${d.category} ${trainNum}`
             : d.line || d.category || "?";
-        const badgeStyle = pcls === "other" ? `background:${MODE_COLOR[m]};color:#fff;` : "";
+        // Per-line colors for buses/trams from line-colors (when known).
+        const lc = (m === "bus" || m === "tram") ? lineColor(d, stationName) : null;
+        const badgeStyle = lc
+          ? `background:${lc.bg};color:${lc.fg};${
+              lc.border
+                ? `border:1.5px solid ${lc.border};`
+                : isDarkColor(lc.bg) && darkMode
+                  ? "border:1.5px solid rgba(255,255,255,0.55);"
+                  : ""
+            }`
+          : (m === "bus" || m === "tram"
+              ? "background:#fff;color:#000;border:1.5px solid #b0b0b0;"
+              : (pcls === "other" ? `background:${MODE_COLOR[m]};color:#fff;` : ""));
         const cancelled = !!d.cancelled;
         const delay = Number.isFinite(d.delay) ? d.delay : null;
         const timeStr = d.departure ? String(d.departure).substr(11, 5) : "";
@@ -497,7 +636,7 @@ class SwissTransportCard extends HTMLElement {
           : "";
         return `
           <div class="cell linecell">
-            <ha-icon class="mode" icon="${MODE_ICON[m]}" style="color:${MODE_COLOR[m]};"></ha-icon>
+            <img class="mode" src="${MODE_ICON[m]}" alt="" />
             <div class="badge ${pcls}" style="${badgeStyle}">${this._escape(badgeText)}</div>
           </div>
           <div class="cell zeit${cancelled ? " cancelled" : ""}">${this._escape(timeStr)}</div>
@@ -573,11 +712,11 @@ class SwissTransportCard extends HTMLElement {
           font-size: 0.8em; font-weight: 600; color: var(--secondary-text-color);
         }
         .linecell { gap: 6px; }
-        .mode { --mdc-icon-size: 22px; flex: none; }
+        .mode { height: 22px; width: auto; flex: none; }
         .badge {
           font-weight: 700; font-size: 0.85em;
-          min-width: 30px; text-align: center; padding: 2px 7px; border-radius: 4px;
-          white-space: nowrap;
+          box-sizing: border-box; min-width: 22px; text-align: center; padding: 2px 7px; border-radius: 4px;
+          white-space: nowrap; margin: 0 auto;
         }
         .badge.sbahn { background: #fff; color: #000; border: 1.5px solid #b0b0b0; }
         .badge.ir { background: #eb0000; color: #fff; font-style: italic; }
@@ -783,6 +922,13 @@ class SwissTransportConnectionCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     this._maybeFetch();
+    if (!_lineColorData && !this._lcPending) {
+      this._lcPending = true;
+      ensureLineColorData(() => {
+        this._lcPending = false;
+        this._render();
+      });
+    }
     this._render();
   }
 
@@ -883,6 +1029,7 @@ class SwissTransportConnectionCard extends HTMLElement {
     const lang = this._lang();
     const st = this._hass.states[this._config.entity];
     const attrs = (st && st.attributes) || {};
+    const darkMode = isDarkTheme(this);
     const title =
       this._config.title ||
       (attrs.from_name && attrs.to_name ? `${attrs.from_name} → ${attrs.to_name}` : attrs.friendly_name || "");
@@ -931,7 +1078,32 @@ class SwissTransportConnectionCard extends HTMLElement {
         const badges = (c.products || [])
           .map((p) => {
             const cls = connProductClass(p);
-            const style = cls === "other" ? "background:#455a64;color:#fff;" : "";
+            // Color bus/tram connection badges from line-colors when we can
+            // match the product to a ridden bus/tram leg (which carries the
+            // operator). Train badges keep the Swiss product scheme.
+            const leg = (Array.isArray(c.legs) ? c.legs : []).find((l) => {
+              const m = transportMode(l.category);
+              if (m !== "bus" && m !== "tram") return false;
+              const prod = String(p || "").trim();
+              return String(l.number || "").trim() === prod || String(l.line || "").trim() === prod;
+            });
+            const lc = leg
+              ? lineColor(
+                  { operator: leg.operator, line: leg.number || leg.line, category: leg.category },
+                  attrs.from_name || ""
+                )
+              : null;
+            const style = lc
+              ? `background:${lc.bg};color:${lc.fg};${
+                  lc.border
+                    ? `border:1.5px solid ${lc.border};`
+                    : isDarkColor(lc.bg) && darkMode
+                      ? "border:1.5px solid rgba(255,255,255,0.55);"
+                      : ""
+                }`
+              : (/^\d+$/.test(String(p || "").trim())
+                  ? "background:#fff;color:#000;border:1.5px solid #b0b0b0;"
+                  : (cls === "other" ? "background:#455a64;color:#fff;" : ""));
             return `<span class="badge ${cls}" style="${style}">${this._escape(p)}</span>`;
           })
           .join(" ");

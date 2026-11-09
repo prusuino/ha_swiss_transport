@@ -1,0 +1,33 @@
+name: Update line colors
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    # Only run in the intended repository, not in other forks/orgs.
+    if: github.repository_owner == 'amuelli'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Regenerate line-colors.json
+        run: python3 scripts/generate_line_colors.py
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: update line colors from Traewelling/line-colors"
+          title: "chore: update line colors"
+          body: |
+            Automated update of `custom_components/swiss_transport/frontend/line-colors.json`
+            from the upstream Traewelling/line-colors data.
+          branch: auto/update-line-colors
+          delete-branch: true
