@@ -1532,13 +1532,22 @@ class SwissTransportControlsCard extends HTMLElement {
   }
 
   _setMode(m) {
+    // Leaving Live with a time that is long gone (left over from an earlier
+    // browse) would show empty boards, so the time moves to now first.
+    if (m !== "live" && this._config.time_entity && this._timeDate().getTime() < Date.now() - 60 * 60 * 1000) {
+      this._writeTime(new Date());
+    }
     this._hass.callService("select", "select_option", { entity_id: this._config.mode_entity, option: m });
   }
 
-  _setTime(d) {
+  _writeTime(d) {
     const p = (n) => String(n).padStart(2, "0");
     const v = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
     this._hass.callService("datetime", "set_value", { entity_id: this._config.time_entity, datetime: v });
+  }
+
+  _setTime(d) {
+    this._writeTime(d);
     if (this._mode() === "live") this._setMode("depart");
   }
 

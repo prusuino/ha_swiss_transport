@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.11.2 — 2026-11-09
+
+- **Controls card: no empty boards after a long break.** Switching from Live to Departure or Arrival with a date/time that is more than an hour in the past (left over from an earlier browse) moves the time to now first.
+
 ## 1.11.1 — 2026-11-09
 
 - **Card hardening.** Line-colour lookups match own table keys only and the colours are validated before they reach a style attribute. Follow-up to the HACS review of Swiss Lottery by @frenck.
