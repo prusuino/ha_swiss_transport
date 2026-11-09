@@ -39,11 +39,40 @@ async def async_serve_card(hass: HomeAssistant, version: str) -> None:
     hass.data[_REGISTERED_FLAG] = True
 
     card_path = Path(__file__).parent / "frontend" / CARD_FILENAME
+    # The mode icons are served alongside the card so the card can reference
+    # them by URL instead of embedding (large) SVG data URIs.
+    icon_files = [
+        "mode-train.svg",
+        "mode-tram.svg",
+        "mode-bus.svg",
+        "mode-ship.svg",
+        "mode-cableway.svg",
+    ]
+    paths = [StaticPathConfig(CARD_URL_BASE, str(card_path), cache_headers=False)]
+    for icon in icon_files:
+        icon_path = Path(__file__).parent / "frontend" / icon
+        if icon_path.is_file():
+            paths.append(
+                StaticPathConfig(
+                    f"/{DOMAIN}_files/{icon}",
+                    str(icon_path),
+                    cache_headers=False,
+                )
+            )
+    # Per-line color mapping, kept in a separate file so it can be regenerated
+    # independently (see scripts/generate_line_colors.py).
+    lc_path = Path(__file__).parent / "frontend" / "line-colors.json"
+    if lc_path.is_file():
+        paths.append(
+            StaticPathConfig(
+                f"/{DOMAIN}_files/line-colors.json",
+                str(lc_path),
+                cache_headers=False,
+            )
+        )
     registered = False
     try:
-        await hass.http.async_register_static_paths(
-            [StaticPathConfig(CARD_URL_BASE, str(card_path), cache_headers=False)]
-        )
+        await hass.http.async_register_static_paths(paths)
         registered = True
     finally:
         if not registered:

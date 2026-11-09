@@ -13,7 +13,13 @@ usage reasonable — it is a community service with rate limits.
 
 **Attribution:** *Data: transport.opendata.ch (search.ch)*
 
-## 2. Real-time data (optional) — opentransportdata.swiss (OJP 2.0)
+## 2. Transport mode pictograms — SBB design system
+
+Transport-mode icons are taken from the **SBB pictogram library**
+(`sbb-design-systems/picto-library`, Apache-2.0 licence) and are used in
+their original blue/white form, in a timetable/orientation context.
+
+## 3. Real-time data (optional) — opentransportdata.swiss (OJP 2.0)
 
 When you configure an API token, station boards are additionally enriched with
 real-time information (fresher delays, cancellations, platform changes,
@@ -27,7 +33,7 @@ integration works purely from transport.opendata.ch.
 
 **Attribution:** *Real-time: opentransportdata.swiss (OJP)*
 
-## 3. Station address — OpenStreetMap / Nominatim
+## 4. Station address — OpenStreetMap / Nominatim
 
 To show a human-readable address under a station name, the integration performs
 a one-time reverse-geocoding lookup per station via **OpenStreetMap Nominatim**.
