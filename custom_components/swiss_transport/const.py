@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 """Constants for the Swiss Transport integration."""
 DOMAIN = "swiss_transport"
 
@@ -76,3 +78,7 @@ MODE_LIVE = "live"        # live board / next connections, now (with real-time)
 MODE_DEPART = "depart"    # timetable departing at the selected time
 MODE_ARRIVE = "arrive"    # timetable arriving by the selected time
 MODES = [MODE_LIVE, MODE_DEPART, MODE_ARRIVE]
+
+# The integration's own version, shown on the service card. Read from the
+# manifest so that a release never needs to touch two places.
+VERSION: str = json.loads((Path(__file__).parent / "manifest.json").read_text(encoding="utf-8"))["version"]

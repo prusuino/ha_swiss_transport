@@ -5,13 +5,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 
-from .const import CONF_FROM_NAME, CONF_STATION_NAME, CONF_TO_NAME, DOMAIN
+from .const import CONF_FROM_NAME, CONF_STATION_NAME, CONF_TO_NAME, DOMAIN, VERSION
 
 
 def device_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInfo:
     name = entry.data.get(CONF_STATION_NAME) or entry.title
     return DeviceInfo(
         identifiers={(DOMAIN, entry.entry_id)},
+        sw_version=VERSION,
         name=name,
         manufacturer="transport.opendata.ch (search.ch)",
         model="Departure board",
@@ -24,6 +25,7 @@ def connection_device_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInf
     to = entry.data.get(CONF_TO_NAME) or ""
     return DeviceInfo(
         identifiers={(DOMAIN, entry.entry_id)},
+        sw_version=VERSION,
         name=f"{frm} → {to}",
         manufacturer="transport.opendata.ch (search.ch)",
         model="Connection",
