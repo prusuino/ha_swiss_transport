@@ -1,7 +1,9 @@
 # Changelog
 
-## 1.10.1 — 2026-11-09
+## 1.11.0 — 2026-11-09
 
+- **SBB pictograms and operator line colours on the cards**, contributed by @amuelli (#4): the departure board and the connection card show the SBB transport-mode pictograms, bus and tram badges carry the real colours of their line (from the Traewelling/line-colors collection) and dark mode gets contrast borders. The colour table ships with the integration and is regenerated with `scripts/generate_line_colors.py`.
+- **Card option `style`.** `sbb` (default) is the new look, `classic` keeps the Material icons and mode colours; selectable in the visual editor of both cards.
 - **Version on the service card.** The integration's version now appears on its service card under Settings → Devices & services, where the entities are listed.
 
 ## 1.10.0 — 2026-11-09

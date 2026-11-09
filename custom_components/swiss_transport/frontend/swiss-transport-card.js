@@ -94,6 +94,33 @@ const MODE_COLOR = {
   cableway: "#5a5a5a",
 };
 
+/* The classic look (card option `style: classic`): Material Design icons
+ * coloured per transport mode and plain mode-coloured badges, as the cards
+ * drew them before the SBB pictograms and the operator line colours. */
+const MODE_ICON_CLASSIC = {
+  train: "mdi:train",
+  tram: "mdi:tram",
+  bus: "mdi:bus",
+  ship: "mdi:ferry",
+  cableway: "mdi:gondola",
+};
+const MODE_COLOR_CLASSIC = { ...MODE_COLOR, cableway: "#6a1b9a" };
+function isClassic(config) {
+  return !!config && config.style === "classic";
+}
+const STYLE_LABELS = {
+  sbb: { de: "SBB-Piktogramme & Linienfarben", en: "SBB pictograms & line colours", fr: "Pictogrammes CFF & couleurs de lignes", it: "Pittogrammi FFS & colori delle linee" },
+  classic: { de: "Klassisch (Material-Symbole, Modusfarben)", en: "Classic (Material icons, mode colours)", fr: "Classique (icônes Material, couleurs par mode)", it: "Classico (icone Material, colori per modalità)" },
+};
+function styleSelector(lang) {
+  return {
+    select: {
+      mode: "dropdown",
+      options: ["sbb", "classic"].map((v) => ({ value: v, label: STYLE_LABELS[v][lang] || STYLE_LABELS[v].en })),
+    },
+  };
+}
+
 // Per-line colors are loaded at runtime from a separate JSON file so they can
 // be regenerated independently (see scripts/generate_line_colors.py).
 let _lineColorData = null;
@@ -580,6 +607,7 @@ class SwissTransportCard extends HTMLElement {
 
     const stationName = (st && st.attributes && st.attributes.station_name) || title || "";
     const darkMode = isDarkTheme(this);
+    const classic = isClassic(this._config);
     const rows = deps
       .map((d) => {
         const m = transportMode(d.category);
@@ -595,8 +623,10 @@ class SwissTransportCard extends HTMLElement {
             ? `${d.category} ${trainNum}`
             : d.line || d.category || "?";
         // Per-line colors for buses/trams from line-colors (when known).
-        const lc = (m === "bus" || m === "tram") ? lineColor(d, stationName) : null;
-        const badgeStyle = lc
+        const lc = !classic && (m === "bus" || m === "tram") ? lineColor(d, stationName) : null;
+        const badgeStyle = classic
+          ? (pcls === "other" ? `background:${MODE_COLOR_CLASSIC[m]};color:#fff;` : "")
+          : lc
           ? `background:${lc.bg};color:${lc.fg};${
               lc.border
                 ? `border:1.5px solid ${lc.border};`
@@ -636,7 +666,9 @@ class SwissTransportCard extends HTMLElement {
           : "";
         return `
           <div class="cell linecell">
-            <img class="mode" src="${MODE_ICON[m]}" alt="" />
+            ${classic
+              ? `<ha-icon class="mode" icon="${MODE_ICON_CLASSIC[m]}" style="color:${MODE_COLOR_CLASSIC[m]};"></ha-icon>`
+              : `<img class="mode mode-img" src="${MODE_ICON[m]}" alt="" />`}
             <div class="badge ${pcls}" style="${badgeStyle}">${this._escape(badgeText)}</div>
           </div>
           <div class="cell zeit${cancelled ? " cancelled" : ""}">${this._escape(timeStr)}</div>
@@ -712,7 +744,8 @@ class SwissTransportCard extends HTMLElement {
           font-size: 0.8em; font-weight: 600; color: var(--secondary-text-color);
         }
         .linecell { gap: 6px; }
-        .mode { height: 22px; width: auto; flex: none; }
+        .mode { --mdc-icon-size: 22px; flex: none; }
+        .mode-img { height: 22px; width: auto; }
         .badge {
           font-weight: 700; font-size: 0.85em;
           box-sizing: border-box; min-width: 22px; text-align: center; padding: 2px 7px; border-radius: 4px;
@@ -784,6 +817,7 @@ customElements.define("swiss-transport-card", SwissTransportCard);
 const EDITOR_LABELS = {
   entity: { de: "Sensor", en: "Sensor", fr: "Capteur", it: "Sensore" },
   title: { de: "Titel (optional)", en: "Title (optional)", fr: "Titre (optionnel)", it: "Titolo (opzionale)" },
+  style: { de: "Darstellung", en: "Style", fr: "Style", it: "Stile" },
   rows: { de: "Maximale Zeilen", en: "Max rows", fr: "Lignes max.", it: "Righe max." },
   show_clock: { de: "Datum & Uhrzeit anzeigen", en: "Show date & time", fr: "Afficher date & heure", it: "Mostra data e ora" },
   show_type: { de: "Typ-Label anzeigen", en: "Show type label", fr: "Afficher le libellé de type", it: "Mostra etichetta tipo" },
@@ -852,6 +886,7 @@ class SwissTransportCardEditor extends HTMLElement {
     this._form.data = {
       entity: this._config.entity || "",
       title: this._config.title || "",
+      style: isClassic(this._config) ? "classic" : "sbb",
       rows: this._config.rows || this._autoRows(),
       show_clock: this._config.show_clock !== false,
       show_type: this._config.show_type !== false,
@@ -864,6 +899,7 @@ class SwissTransportCardEditor extends HTMLElement {
     this._form.schema = [
       { name: "entity", required: true, selector: { entity: { domain: "sensor", integration: "swiss_transport" } } },
       { name: "title", selector: { text: {} } },
+      { name: "style", selector: styleSelector(lang) },
       { name: "rows", selector: { number: { min: 1, max: 20, mode: "box" } } },
       { name: "show_clock", selector: { boolean: {} } },
       { name: "show_type", selector: { boolean: {} } },
@@ -1030,6 +1066,7 @@ class SwissTransportConnectionCard extends HTMLElement {
     const st = this._hass.states[this._config.entity];
     const attrs = (st && st.attributes) || {};
     const darkMode = isDarkTheme(this);
+    const classic = isClassic(this._config);
     const title =
       this._config.title ||
       (attrs.from_name && attrs.to_name ? `${attrs.from_name} → ${attrs.to_name}` : attrs.friendly_name || "");
@@ -1087,7 +1124,7 @@ class SwissTransportConnectionCard extends HTMLElement {
               const prod = String(p || "").trim();
               return String(l.number || "").trim() === prod || String(l.line || "").trim() === prod;
             });
-            const lc = leg
+            const lc = leg && !classic
               ? lineColor(
                   { operator: leg.operator, line: leg.number || leg.line, category: leg.category },
                   attrs.from_name || ""
@@ -1101,7 +1138,7 @@ class SwissTransportConnectionCard extends HTMLElement {
                       ? "border:1.5px solid rgba(255,255,255,0.55);"
                       : ""
                 }`
-              : (/^\d+$/.test(String(p || "").trim())
+              : (!classic && /^\d+$/.test(String(p || "").trim())
                   ? "background:#fff;color:#000;border:1.5px solid #b0b0b0;"
                   : (cls === "other" ? "background:#455a64;color:#fff;" : ""));
             return `<span class="badge ${cls}" style="${style}">${this._escape(p)}</span>`;
@@ -1269,6 +1306,7 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
     this._form.data = {
       entity: this._config.entity || "",
       title: this._config.title || "",
+      style: isClassic(this._config) ? "classic" : "sbb",
       rows: this._config.rows || this._autoRows(),
       show_clock: this._config.show_clock !== false,
       show_type: this._config.show_type !== false,
@@ -1279,6 +1317,7 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
     this._form.schema = [
       { name: "entity", required: true, selector: { entity: { domain: "sensor", integration: "swiss_transport" } } },
       { name: "title", selector: { text: {} } },
+      { name: "style", selector: styleSelector(lang) },
       { name: "rows", selector: { number: { min: 1, max: 12, mode: "box" } } },
       { name: "show_clock", selector: { boolean: {} } },
       { name: "show_type", selector: { boolean: {} } },

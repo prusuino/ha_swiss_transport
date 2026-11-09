@@ -17,9 +17,20 @@ usage reasonable — it is a community service with rate limits.
 
 Transport-mode icons are taken from the **SBB pictogram library**
 (`sbb-design-systems/picto-library`, Apache-2.0 licence) and are used in
-their original blue/white form, in a timetable/orientation context.
+their original blue/white form, in a timetable/orientation context. A copy of
+the licence ships next to the files as
+`custom_components/swiss_transport/frontend/LICENSE-pictograms.txt`. The
+pictograms are not the SBB logo; the SBB trademarks remain with SBB.
 
-## 3. Real-time data (optional) — opentransportdata.swiss (OJP 2.0)
+## 3. Line colours — Traewelling/line-colors
+
+The operator line colours of buses and trams (badge background and text)
+come from the **Traewelling/line-colors** collection (`line-colors-CH.csv`),
+published under **CC0 1.0** (public domain dedication). The table ships as
+`custom_components/swiss_transport/frontend/line-colors.json` and is
+regenerated with `scripts/generate_line_colors.py`.
+
+## 4. Real-time data (optional) — opentransportdata.swiss (OJP 2.0)
 
 When you configure an API token, station boards are additionally enriched with
 real-time information (fresher delays, cancellations, platform changes,
@@ -33,7 +44,7 @@ integration works purely from transport.opendata.ch.
 
 **Attribution:** *Real-time: opentransportdata.swiss (OJP)*
 
-## 4. Station address — OpenStreetMap / Nominatim
+## 5. Station address — OpenStreetMap / Nominatim
 
 To show a human-readable address under a station name, the integration performs
 a one-time reverse-geocoding lookup per station via **OpenStreetMap Nominatim**.

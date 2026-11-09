@@ -53,6 +53,7 @@ entity: sensor.swiss_transport_<station>_<tag>
 type: custom:swiss-transport-card
 entity: sensor.swiss_transport_<station>_<tag>
 title: Zürich HB      # optional
+style: sbb            # optional, "sbb" (SBB pictograms, operator line colours) or "classic" (Material icons, mode colours)
 rows: 8               # optional, max departures shown; unset = the count configured in the integration
 show_clock: true      # optional, show the date/time bar
 show_type: true       # optional, show the "Departures" label
@@ -69,6 +70,7 @@ mode_entity: select.swiss_transport_mode        # optional, follow timetable bro
 type: custom:swiss-transport-connection-card
 entity: sensor.swiss_transport_<from>_<to>_<tag>
 title: Olten → Zürich HB   # optional
+style: sbb                 # optional, "sbb" or "classic" (see the departure board)
 datetime_entity: datetime.swiss_transport_time  # optional, follow timetable browsing
 mode_entity: select.swiss_transport_mode        # optional, follow timetable browsing
 ```
@@ -80,6 +82,8 @@ type: custom:swiss-transport-controls-card
 ```
 
 Both the date/time bar and the type label can be toggled off in the visual editor.
+
+**Two looks.** By default the boards use the SBB transport pictograms and the real operator colours of bus and tram lines (Zürich, Basel, Schaffhausen, Neuchâtel, Liechtenstein, PostBus; other lines get a neutral white badge). `style: classic`, also offered in the visual editor, keeps the previous look with Material Design icons and one colour per transport mode.
 
 ### 1. Register the card resource (once)
 
