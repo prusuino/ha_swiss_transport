@@ -205,10 +205,25 @@ function lineColor(dep, stationName) {
     const nm = String(stationName || "").toLowerCase();
     const jura = /del[eé]mont|porrentruy|saignel[eé]gier|moutier|bassecourt|glovelier|tavannes|sonceboz/.test(nm);
     const tbl = jura ? _lineColorData.LINE_COLORS_PAG_MOBIJU : _lineColorData.LINE_COLORS_PAG_TNW;
-    return tbl && tbl[line] ? tbl[line] : null;
+    return cleanLineColor(ownValue(tbl, line));
   }
-  const tbl = _lineColorData.LINE_COLORS && _lineColorData.LINE_COLORS[op];
-  return tbl && tbl[line] ? tbl[line] : null;
+  return cleanLineColor(ownValue(ownValue(_lineColorData.LINE_COLORS, op), line));
+}
+
+/* Line numbers and operators come from entity attributes, so lookups only
+ * match the table's own keys, and the colours that end up in a style
+ * attribute must look like colours. */
+function ownValue(table, key) {
+  return table && typeof table === "object" && Object.prototype.hasOwnProperty.call(table, key) ? table[key] : null;
+}
+function safeColor(value) {
+  return typeof value === "string" && /^#[0-9a-f]{3,8}$/i.test(value) ? value : null;
+}
+function cleanLineColor(lc) {
+  if (!lc || typeof lc !== "object") return null;
+  const bg = safeColor(lc.bg);
+  const fg = safeColor(lc.fg);
+  return bg && fg ? { bg, fg, border: safeColor(lc.border) } : null;
 }
 
 /* Detect dark mode from Home Assistant's own state: the root element gets a
