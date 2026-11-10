@@ -16,6 +16,18 @@ Both come with a bundled Lovelace card styled like a station departure board, pl
 
 ![A departures dashboard: two departure boards, a connection, and an empty stop](docs/dashboard-example.png)
 
+## Highlights
+
+- **Any stop in Switzerland**: departure boards for train, tram, bus, ship and cableway, and saved connections from A to B — from transport.opendata.ch, no account needed.
+- **Four dashboard cards**: a board card that recognizes the sensor type, a departure board laid out like a station display, a connection card and a controls card — two looks, the real operator colours of bus and tram lines, all with a visual editor.
+- **Browse the timetable**: switch every board from live to any date and time, or to an arrivals board.
+- **Real time if you want it**: with a free opentransportdata.swiss token, delays to the second, cancellations, platform changes, disruption messages and occupancy.
+- **Built for the automation editor**: triggers and conditions for a delayed next departure and a reported disruption, and a blueprint that reminds you before the next departure — no templates needed.
+- **Two actions for everything else**: `swiss_transport.get_departures` and `swiss_transport.get_connections` answer for any stop, configured or not — made for scripts and Assist.
+- **A dashboard without building one**: the bundled strategy lays out your boards and connections by itself.
+- **Polls sparingly**: boards about every 90 seconds, connections every 5 minutes, within the quotas of the API.
+- **Set up in a minute**: type part of a station name and pick the stop; German, English, French and Italian; diagnostics download with coordinates and token redacted.
+
 ## What it provides
 
 When you add the integration you first choose a **mode** — a departure board of a station, or a saved connection (from → to). Repeat for as many stations/routes as you like; each becomes its own device.
