@@ -43,7 +43,7 @@ _GEOCODE_HEADERS = {"User-Agent": "ha-swiss-transport (Home Assistant integratio
 
 async def async_reverse_geocode(hass: HomeAssistant, lat: float, lon: float) -> str | None:
     """Resolve a station's coordinates to a short human address
-    ('Tannwaldstrasse, 4600 Olten') via OpenStreetMap Nominatim. Called at
+    ('Hirschengraben, 3011 Bern') via OpenStreetMap Nominatim. Called at
     most once per station (cached in the coordinator), so it stays well
     within Nominatim's usage policy. Returns None on any failure — the card
     simply omits the line then."""

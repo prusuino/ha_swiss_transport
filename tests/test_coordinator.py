@@ -68,7 +68,7 @@ def test_connection_legs_and_changes():
         "duration": "00d01:30:00", "transfers": 1, "products": ["IC 8", "S 9"],
         "sections": [
             {"journey": {"category": "IC", "number": "8", "to": "Zürich HB"},
-             "departure": {"station": {"name": "Olten"}, "platform": "4"}, "arrival": {"station": {"name": "Zürich HB"}, "platform": "33"}},
+             "departure": {"station": {"name": "Luzern"}, "platform": "4"}, "arrival": {"station": {"name": "Zürich HB"}, "platform": "33"}},
             {"journey": None, "walk": {"duration": 300}},
             {"journey": {"category": "S", "number": "9", "to": "Uster"},
              "departure": {"station": {"name": "Zürich HB"}, "platform": "43"}, "arrival": {"station": {"name": "Uster"}, "platform": "2"}},
@@ -100,7 +100,7 @@ OJP_XML = """<?xml version="1.0" encoding="UTF-8"?>
  <OJPResponse><siri:ServiceDelivery><OJPStopEventDelivery>
   <PtSituation><siri:Summary>x</siri:Summary>
     <siri:PassengerInformationAction><siri:TextualContent><siri:SummaryContent>
-      <siri:SummaryText>Olten: Gleisänderung wegen Bauarbeiten</siri:SummaryText>
+      <siri:SummaryText>Luzern: Gleisänderung wegen Bauarbeiten</siri:SummaryText>
     </siri:SummaryContent></siri:TextualContent></siri:PassengerInformationAction>
   </PtSituation>
   <StopEventResult><StopEvent>
@@ -123,7 +123,7 @@ OJP_XML = """<?xml version="1.0" encoding="UTF-8"?>
 
 def test_ojp_stationboard_parser():
     ojp = _parse_ojp_stationboard(OJP_XML)
-    assert ojp["alerts"] == ["Olten: Gleisänderung wegen Bauarbeiten"]
+    assert ojp["alerts"] == ["Luzern: Gleisänderung wegen Bauarbeiten"]
     planned = _ojp_iso_to_ts("2026-11-09T06:12:00Z")
     events = ojp["events"][planned]
     assert len(events) == 2
@@ -150,7 +150,7 @@ def test_ojp_overlay_matches_by_time_and_destination():
     assert basel["cancelled"] is True and basel["platform"] == "3"
     assert "cancelled" not in bern  # no real-time row for it
     assert board["realtime"] is True
-    assert board["alerts"] == ["Olten: Gleisänderung wegen Bauarbeiten"]
+    assert board["alerts"] == ["Luzern: Gleisänderung wegen Bauarbeiten"]
 
 
 def test_rate_limit_backoff_only_on_429():

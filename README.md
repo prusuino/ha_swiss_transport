@@ -32,7 +32,7 @@ When you add the integration you first choose a **mode** — a departure board o
 |---|---|---|
 | `sensor.swiss_transport_<from>_<to>_<tag>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, delay, `duration_min`, `transfers`, the `products`/lines used, and `changes` — the transfer stations with arrival → onward platform), `connection_count`, from/to names and station ids. |
 
-`<station>`, `<from>` and `<to>` are the stop names as the timetable API returns them, slugified; `<tag>` is a short discriminator — the last four characters of the config entry id, lower-cased — that keeps two stops whose names slugify to the same text apart (say the railway station "Zürich HB" and a tram stop "Zürich, HB"). The board of Zürich HB is thus something like `sensor.swiss_transport_zurich_hb_k7q2`, the connection Olten → Zürich HB `sensor.swiss_transport_olten_zurich_hb_m3xz`. The integration suggests these object ids when an entity is first created, so they do not depend on your Home Assistant language — only the entity's displayed name ("Departures" / "Abfahrten") is localized. Entities created by versions before 1.4.0 keep the ids they have (without the tag). Like any entity, they can be renamed in the entity settings afterwards.
+`<station>`, `<from>` and `<to>` are the stop names as the timetable API returns them, slugified; `<tag>` is a short discriminator — the last four characters of the config entry id, lower-cased — that keeps two stops whose names slugify to the same text apart (say the railway station "Zürich HB" and a tram stop "Zürich, HB"). The board of Zürich HB is thus something like `sensor.swiss_transport_zurich_hb_k7q2`, the connection Bern → Zürich HB `sensor.swiss_transport_bern_zurich_hb_m3xz`. The integration suggests these object ids when an entity is first created, so they do not depend on your Home Assistant language — only the entity's displayed name ("Departures" / "Abfahrten") is localized. Entities created by versions before 1.4.0 keep the ids they have (without the tag). Like any entity, they can be renamed in the entity settings afterwards.
 
 Station boards refresh about every 90 seconds. Saved connections refresh every 5 minutes — the transport.opendata.ch API allows only 1000 connection queries per day, and the slower cadence keeps several saved routes comfortably within that quota. If the API ever answers with "too many requests" (HTTP 429), the affected entry pauses for 30 minutes and then resumes automatically.
 
@@ -69,7 +69,7 @@ mode_entity: select.swiss_transport_mode        # optional, follow timetable bro
 ```yaml
 type: custom:swiss-transport-connection-card
 entity: sensor.swiss_transport_<from>_<to>_<tag>
-title: Olten → Zürich HB   # optional
+title: Bern → Zürich HB    # optional
 style: sbb                 # optional, "sbb" or "classic" (see the departure board)
 datetime_entity: datetime.swiss_transport_time  # optional, follow timetable browsing
 mode_entity: select.swiss_transport_mode        # optional, follow timetable browsing
@@ -169,7 +169,7 @@ script:
       - action: swiss_transport.get_connections
         data:
           from: "Zürich HB"
-          to: "Olten"
+          to: "Bern"
           limit: 3
         response_variable: result
       - action: notify.mobile_app_phone
@@ -208,7 +208,7 @@ Both target the integration's own sensors (pick an entity, the stop's device or 
 triggers:
   - trigger: swiss_transport.departure_delayed
     target:
-      entity_id: sensor.swiss_transport_olten_zurich_hb_m3xz
+      entity_id: sensor.swiss_transport_bern_zurich_hb_m3xz
     options:
       minimum_delay: 5
 ```
@@ -221,7 +221,7 @@ On Home Assistant 2026.11 or newer the integration also adds two conditions: **N
 conditions:
   - condition: swiss_transport.is_departure_delayed
     target:
-      entity_id: sensor.swiss_transport_olten_zurich_hb_m3xz
+      entity_id: sensor.swiss_transport_bern_zurich_hb_m3xz
     options:
       minimum_delay: 3
 ```

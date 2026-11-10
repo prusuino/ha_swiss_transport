@@ -2,7 +2,7 @@ get_departures:
   fields:
     station:
       required: true
-      example: "Olten"
+      example: "Bern"
       selector:
         text:
     limit:
@@ -30,7 +30,7 @@ get_connections:
   fields:
     from:
       required: true
-      example: "Olten"
+      example: "Bern"
       selector:
         text:
     to:

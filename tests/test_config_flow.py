@@ -25,7 +25,7 @@ from custom_components.swiss_transport.const import (
 from custom_components.swiss_transport.coordinator import OjpAuthError
 
 STATIONS = {
-    "olten": [{"id": "8500218", "name": "Olten"}, {"id": "8500219", "name": "Olten Hammer"}],
+    "luzern": [{"id": "8505000", "name": "Luzern"}, {"id": "8505001", "name": "Luzern Verkehrshaus"}],
     "bern": [{"id": "8507000", "name": "Bern"}],
     "chur": [{"id": "8509000", "name": "Chur"}],
 }
@@ -46,18 +46,18 @@ async def test_departure_board_setup(hass: HomeAssistant, enable_custom_integrat
     assert result["step_id"] == "user"
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"mode": "station"})
     assert result["step_id"] == "station"
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"query": "Olten"})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"query": "Luzern"})
     assert result["step_id"] == "pick"
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_STATION_ID: "8500218", CONF_LIMIT: 5, "transportations": ["train"], "ojp_token": ""}
+        result["flow_id"], {CONF_STATION_ID: "8505000", CONF_LIMIT: 5, "transportations": ["train"], "ojp_token": ""}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_ENTRY_TYPE] == ENTRY_TYPE_STATION
-    assert result["data"][CONF_STATION_ID] == "8500218"
-    assert result["data"][CONF_STATION_NAME] == "Olten"
+    assert result["data"][CONF_STATION_ID] == "8505000"
+    assert result["data"][CONF_STATION_NAME] == "Luzern"
     assert result["data"][CONF_LIMIT] == 5
     assert "ojp_token" not in result["data"]
-    assert result["result"].unique_id == "station_8500218"
+    assert result["result"].unique_id == "station_8505000"
 
 
 async def test_no_station_found_shows_error(hass: HomeAssistant, enable_custom_integrations, fake_search) -> None:
@@ -72,22 +72,22 @@ async def test_no_station_found_shows_error(hass: HomeAssistant, enable_custom_i
 async def test_rejected_realtime_token_is_a_form_error(hass: HomeAssistant, enable_custom_integrations, fake_search) -> None:
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"mode": "station"})
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"query": "Olten"})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"query": "Luzern"})
     with patch("custom_components.swiss_transport.config_flow.async_validate_ojp_token", side_effect=OjpAuthError(401)):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], {CONF_STATION_ID: "8500218", CONF_LIMIT: 5, "transportations": [], "ojp_token": "bad-token"}
+            result["flow_id"], {CONF_STATION_ID: "8505000", CONF_LIMIT: 5, "transportations": [], "ojp_token": "bad-token"}
         )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "invalid_auth"}
 
 
 async def test_same_station_twice_is_refused(hass: HomeAssistant, enable_custom_integrations, fake_search) -> None:
-    MockConfigEntry(domain=DOMAIN, unique_id="station_8500218", title="Olten", data={CONF_ENTRY_TYPE: ENTRY_TYPE_STATION, CONF_STATION_ID: "8500218"}).add_to_hass(hass)
+    MockConfigEntry(domain=DOMAIN, unique_id="station_8505000", title="Luzern", data={CONF_ENTRY_TYPE: ENTRY_TYPE_STATION, CONF_STATION_ID: "8505000"}).add_to_hass(hass)
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"mode": "station"})
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"query": "Olten"})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"query": "Luzern"})
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_STATION_ID: "8500218", CONF_LIMIT: 5, "transportations": [], "ojp_token": ""}
+        result["flow_id"], {CONF_STATION_ID: "8505000", CONF_LIMIT: 5, "transportations": [], "ojp_token": ""}
     )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
@@ -111,8 +111,8 @@ async def test_connection_setup(hass: HomeAssistant, enable_custom_integrations,
 
 async def test_reconfigure_moves_the_board_to_another_stop(hass: HomeAssistant, enable_custom_integrations, fake_search) -> None:
     entry = MockConfigEntry(
-        domain=DOMAIN, unique_id="station_8500218", title="Olten",
-        data={CONF_ENTRY_TYPE: ENTRY_TYPE_STATION, CONF_STATION_ID: "8500218", CONF_STATION_NAME: "Olten", CONF_LIMIT: 5, "transportations": []},
+        domain=DOMAIN, unique_id="station_8505000", title="Luzern",
+        data={CONF_ENTRY_TYPE: ENTRY_TYPE_STATION, CONF_STATION_ID: "8505000", CONF_STATION_NAME: "Luzern", CONF_LIMIT: 5, "transportations": []},
         options={CONF_LIMIT: 8},
     )
     entry.add_to_hass(hass)
