@@ -360,6 +360,7 @@ function parseConnectionEntry(con) {
     duration_min: durationToMinutes(con.duration),
     transfers: con.transfers,
     products: con.products || [],
+    legs, // the board options need the legs in timetable mode, too
     changes,
   };
 }
@@ -842,6 +843,12 @@ const EDITOR_LABELS = {
   show_changes: { de: "Umsteigepunkte anzeigen", en: "Show transfers", fr: "Afficher les changements", it: "Mostra cambi" },
   datetime_entity: { de: "Datum/Zeit-Entität (optional)", en: "Date/time entity (optional)", fr: "Entité date/heure (opt.)", it: "Entità data/ora (opz.)" },
   mode_entity: { de: "Modus-Entität (optional)", en: "Mode entity (optional)", fr: "Entité mode (opt.)", it: "Entità modalità (opz.)" },
+  // board options of the connection card
+  from: { de: "Nur ab Haltestelle (Namensanfang)", en: "Only from stop (name prefix)", fr: "Seulement depuis l'arrêt (début du nom)", it: "Solo dalla fermata (inizio nome)" },
+  hide_departed: { de: "Abgefahrene ausblenden", en: "Hide departed", fr: "Masquer les départs passés", it: "Nascondi partiti" },
+  group_by_mode: { de: "Nach Verkehrsmittel gruppieren", en: "Group by mode", fr: "Grouper par mode", it: "Raggruppa per mezzo" },
+  show_arrival: { de: "Ankunft & Dauer anzeigen", en: "Show arrival & duration", fr: "Afficher arrivée & durée", it: "Mostra arrivo e durata" },
+  stale_threshold: { de: "Veraltet nach (Sekunden, 0 = aus)", en: "Stale after (seconds, 0 = off)", fr: "Périmé après (secondes, 0 = off)", it: "Obsoleto dopo (secondi, 0 = off)" },
 };
 
 class SwissTransportCardEditor extends HTMLElement {
@@ -955,6 +962,42 @@ const C_HDR_LINE = { de: "Linie", en: "Line", fr: "Ligne", it: "Linea" };
 const C_HDR_ARR = { de: "An", en: "Arr", fr: "Arr", it: "Arr" };
 const C_HDR_DUR = { de: "Dauer", en: "Duration", fr: "Durée", it: "Durata" };
 const XFER_WORD = { de: "Umst.", en: "chg.", fr: "corr.", it: "camb." };
+// connection card board options (from, hide_departed, group_by_mode,
+// show_arrival, stale_threshold), pinned by tests/frontend/connection-card.test.mjs.
+const STALE_WORD = { de: "Veraltet", en: "Stale", fr: "Périmé", it: "Obsoleto" };
+const MODE_ORDER = Object.keys(MODE_ICON);
+const MODE_WORD = {
+  train: { de: "Zug", en: "Train", fr: "Train", it: "Treno" },
+  tram: { de: "Tram", en: "Tram", fr: "Tram", it: "Tram" },
+  bus: { de: "Bus", en: "Bus", fr: "Bus", it: "Bus" },
+  ship: { de: "Schiff", en: "Ship", fr: "Bateau", it: "Battello" },
+  cableway: { de: "Seilbahn", en: "Cableway", fr: "Téléphérique", it: "Funivia" },
+};
+
+// Connections are planner results: one can start with a walk to another stop,
+// so the first ridden leg (walks carry none) decides where and how it boards.
+function firstLeg(c) {
+  return c && Array.isArray(c.legs) && c.legs.length ? c.legs[0] : null;
+}
+function connDepartureMs(c) {
+  const delay = Number.isFinite(c.delay) ? c.delay : 0;
+  return c.departure_ts ? c.departure_ts * 1000 + delay * 60000 : null;
+}
+// Card options `from` (keep connections boarding at a stop whose name starts
+// with it) and `hide_departed` (drop connections that already left; they stay
+// in the sensor until its next poll and would push a real departure out of the
+// `rows` limit). Both are off by default.
+function filterConnections(cons, config, nowMs) {
+  const from = String(config.from || "").trim().toLowerCase();
+  return cons.filter((c) => {
+    if (from) {
+      const leg = firstLeg(c);
+      if (!leg || !String(leg.from_name || "").toLowerCase().startsWith(from)) return false;
+    }
+    const t = connDepartureMs(c);
+    return !(config.hide_departed === true && t != null && t <= nowMs);
+  });
+}
 const PF_ABBR = { de: "Gl.", en: "Pl.", fr: "V.", it: "Bin." };
 const CHANGE_WORD = { de: "Umsteigen", en: "Change", fr: "Changement", it: "Cambio" };
 
@@ -1042,7 +1085,7 @@ class SwissTransportConnectionCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 2 + Math.min((this._connections() || []).length || 3, this._maxRows());
+    return 2 + Math.min(filterConnections(this._connections() || [], this._config, Date.now()).length || 3, this._maxRows());
   }
 
   // Full width by default and resizeable in the sections view — without
@@ -1085,8 +1128,27 @@ class SwissTransportConnectionCard extends HTMLElement {
     const title =
       this._config.title ||
       (attrs.from_name && attrs.to_name ? `${attrs.from_name} → ${attrs.to_name}` : attrs.friendly_name || "");
-    const cons = this._connections().slice(0, this._maxRows());
     const nowMs = Date.now();
+    // board options (from, hide_departed, group_by_mode, show_arrival,
+    // stale_threshold). A timetable for another time is no use to hide_departed.
+    const inTimetable = this._mode() !== "live" && this._selTime();
+    const filterCfg = inTimetable ? { ...this._config, hide_departed: false } : this._config;
+    let cons = filterConnections(this._connections(), filterCfg, nowMs).slice(0, this._maxRows());
+    // group_by_mode: one heading per transport mode, only when more than one
+    // mode is present (a single heading would repeat the card title).
+    let groups = null;
+    if (this._config.group_by_mode === true) {
+      const byMode = {};
+      // A connection without a ridden leg (walk only) has no mode to group by.
+      cons = cons.filter((c) => firstLeg(c));
+      cons.forEach((c) => {
+        const mode = transportMode(firstLeg(c).category);
+        (byMode[mode] = byMode[mode] || []).push(c);
+      });
+      groups = MODE_ORDER.filter((m) => byMode[m]).map((m) => ({ mode: m, items: byMode[m] }));
+      if (groups.length > 1) cons = groups.flatMap((g) => g.items);
+      else groups = null;
+    }
     const now = nowParts(lang);
     const selTime = this._selTime();
     const ttMode = this._mode() !== "live" && selTime;
@@ -1094,18 +1156,26 @@ class SwissTransportConnectionCard extends HTMLElement {
     // Live-only: in timetable mode the card fetches its own data, so the
     // sensor's fetch count does not cap the board there.
     const limitHint = ttMode ? "" : limitHintText(this._hass, this._config, "connection_count", lang);
+    // stale_threshold (seconds): the first connection of the sensor left longer
+    // ago than that, so several polls were missed. Live view only; off by default.
+    const staleSec = Number(this._config.stale_threshold);
+    const first = this._connections()[0];
+    const firstMs = first && connDepartureMs(first);
+    const stale = staleSec > 0 && !ttMode && firstMs != null && nowMs - firstMs > staleSec * 1000;
 
     // Platform columns (Gleis) for departure and arrival, shown like on the
     // departure board — and dropped when no connection has that platform.
+    // show_arrival: false drops the arrival columns and the duration.
+    const showArr = this._config.show_arrival !== false;
     const anyDepPf = cons.some((c) => c.dep_platform);
-    const anyArrPf = cons.some((c) => c.arr_platform);
+    const anyArrPf = showArr && cons.some((c) => c.arr_platform);
     const ccol = ["auto"]; // Ab
     if (anyDepPf) ccol.push("auto"); // Gleis (ab)
     ccol.push("auto"); // in
     ccol.push("1fr"); // Linie
-    ccol.push("auto"); // An
+    if (showArr) ccol.push("auto"); // An
     if (anyArrPf) ccol.push("auto"); // Gleis (an)
-    ccol.push("auto"); // Dauer
+    if (showArr) ccol.push("auto"); // Dauer
     const cCols = ccol.join(" ");
     const pfHdr = HDR_PLATFORM[lang] || HDR_PLATFORM.en;
 
@@ -1114,16 +1184,16 @@ class SwissTransportConnectionCard extends HTMLElement {
       ${anyDepPf ? `<div class="cell hdr">${pfHdr}</div>` : ""}
       <div class="cell hdr">${C_HDR_IN[lang] || C_HDR_IN.en}</div>
       <div class="cell hdr">${C_HDR_LINE[lang] || C_HDR_LINE.en}</div>
-      <div class="cell hdr">${C_HDR_ARR[lang] || C_HDR_ARR.en}</div>
+      ${showArr ? `<div class="cell hdr">${C_HDR_ARR[lang] || C_HDR_ARR.en}</div>` : ""}
       ${anyArrPf ? `<div class="cell hdr">${pfHdr}</div>` : ""}
-      <div class="cell hdr">${C_HDR_DUR[lang] || C_HDR_DUR.en}</div>`;
+      ${showArr ? `<div class="cell hdr">${C_HDR_DUR[lang] || C_HDR_DUR.en}</div>` : ""}`;
 
     const rows = cons
       .map((c) => {
         const delay = Number.isFinite(c.delay) ? c.delay : null;
         const depStr = c.departure ? String(c.departure).substr(11, 5) : "";
         const arrStr = c.arrival ? String(c.arrival).substr(11, 5) : "";
-        const depMs = (c.departure_ts || 0) * 1000 + (delay ? delay * 60000 : 0);
+        const depMs = connDepartureMs(c) || 0;
         const minsLeft = Math.round((depMs - nowMs) / 60000);
         const countdown = minsLeft <= 0 ? (NOW_WORD[lang] || NOW_WORD.en) : `${minsLeft}′`;
         const delayStr = delay && delay > 0 ? ` <span class="delay">+${delay}</span>` : "";
@@ -1185,14 +1255,17 @@ class SwissTransportConnectionCard extends HTMLElement {
                 })
                 .join(", ")}</span></div>`
             : "";
+        const grp = groups && groups.find((g) => g.items[0] === c);
+        const grpHtml = grp ? `<div class="grp">${(MODE_WORD[grp.mode] || {})[lang] || grp.mode}</div>` : "";
         return `
+          ${grpHtml}
           <div class="cell dep">${this._escape(depStr)}${delayStr}</div>
           ${anyDepPf ? `<div class="cell platform">${this._escape(c.dep_platform || "")}</div>` : ""}
           <div class="cell cd">${this._escape(countdown)}</div>
           <div class="cell lines">${badges}</div>
-          <div class="cell arr">${this._escape(arrStr)}</div>
+          ${showArr ? `<div class="cell arr">${this._escape(arrStr)}</div>` : ""}
           ${anyArrPf ? `<div class="cell platform">${this._escape(c.arr_platform || "")}</div>` : ""}
-          <div class="cell dur">${this._escape(dur)}${xfer}</div>
+          ${showArr ? `<div class="cell dur">${this._escape(dur)}${xfer}</div>` : ""}
           ${changesHtml}`;
       })
       .join("");
@@ -1250,6 +1323,13 @@ class SwissTransportConnectionCard extends HTMLElement {
         .ttbar ha-icon { --mdc-icon-size: 18px; color: var(--info-color, #2979ff); flex: none; }
         .empty { padding: 14px 0; color: var(--secondary-text-color); text-align: center; }
         .limit-hint { padding: 8px 0 2px; font-size: 0.8em; color: var(--secondary-text-color); text-align: center; }
+        /* group_by_mode and stale_threshold */
+        .grp { grid-column: 1 / -1; padding: 8px 0 2px; font-size: 0.8em; font-weight: 600; color: var(--secondary-text-color); }
+        .stale {
+          font-size: 0.75em; font-weight: 500; padding: 1px 6px; border-radius: 8px;
+          color: var(--warning-color, #ffa726); border: 1px solid currentColor; white-space: nowrap;
+          margin-left: auto;
+        }
       </style>
       <ha-card>
         <div class="wrap">
@@ -1259,6 +1339,7 @@ class SwissTransportConnectionCard extends HTMLElement {
           </div>`}
           <div class="headrow">
             <div class="title">${this._escape(title)}</div>
+            ${stale ? `<div class="stale">${STALE_WORD[lang] || STALE_WORD.en}</div>` : ""}
             ${this._config.show_type === false ? "" : `<div class="typelabel">${TYPE_CONNECTION[lang] || TYPE_CONNECTION.en}</div>`}
           </div>
           ${ttHtml}
@@ -1305,6 +1386,12 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
         if (config.show_changes !== false) delete config.show_changes;
         if (!config.datetime_entity) delete config.datetime_entity;
         if (!config.mode_entity) delete config.mode_entity;
+        // board options
+        if (!config.from) delete config.from;
+        if (!config.hide_departed) delete config.hide_departed;
+        if (!config.group_by_mode) delete config.group_by_mode;
+        if (config.show_arrival !== false) delete config.show_arrival;
+        if (!config.stale_threshold) delete config.stale_threshold;
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
       });
       this.appendChild(this._form);
@@ -1328,6 +1415,11 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
       show_changes: this._config.show_changes !== false,
       datetime_entity: this._config.datetime_entity || "",
       mode_entity: this._config.mode_entity || "",
+      from: this._config.from || "",
+      hide_departed: this._config.hide_departed === true,
+      group_by_mode: this._config.group_by_mode === true,
+      show_arrival: this._config.show_arrival !== false,
+      stale_threshold: this._config.stale_threshold || 0,
     };
     this._form.schema = [
       { name: "entity", required: true, selector: { entity: { domain: "sensor", integration: "swiss_transport" } } },
@@ -1337,6 +1429,11 @@ class SwissTransportConnectionCardEditor extends HTMLElement {
       { name: "show_clock", selector: { boolean: {} } },
       { name: "show_type", selector: { boolean: {} } },
       { name: "show_changes", selector: { boolean: {} } },
+      { name: "show_arrival", selector: { boolean: {} } },
+      { name: "from", selector: { text: {} } },
+      { name: "hide_departed", selector: { boolean: {} } },
+      { name: "group_by_mode", selector: { boolean: {} } },
+      { name: "stale_threshold", selector: { number: { min: 0, max: 86400, mode: "box" } } },
       { name: "datetime_entity", selector: { entity: { domain: "datetime" } } },
       { name: "mode_entity", selector: { entity: { domain: "select" } } },
     ];
