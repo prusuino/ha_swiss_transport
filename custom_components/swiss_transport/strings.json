@@ -74,10 +74,12 @@
         "data": {
           "limit": "Number shown",
           "transportations": "Transport types (empty = all)",
-          "ojp_token": "Real-time token (optional)"
+          "ojp_token": "Real-time token (optional)",
+          "line_label": "Line name"
         },
         "data_description": {
-          "ojp_token": "Optional OJP 2.0 API token from opentransportdata.swiss for fresher delays, cancellations, platform changes and occupancy. Entered once, it enriches every station board. Leave empty to use opendata.ch only."
+          "ojp_token": "Optional OJP 2.0 API token from opentransportdata.swiss for fresher delays, cancellations, platform changes and occupancy. Entered once, it enriches every station board. Leave empty to use opendata.ch only.",
+          "line_label": "Name of train lines: \"S\" keeps the category only, \"S9\" is category and number, \"9\" the number only. Bus and tram always show the number."
         }
       }
     },
@@ -132,6 +134,13 @@
         "bus": "Bus",
         "ship": "Ship",
         "cableway": "Cableway"
+      }
+    },
+    "line_label": {
+      "options": {
+        "category": "S (category only)",
+        "full": "S9 (category and number)",
+        "number": "9 (number only)"
       }
     }
   },

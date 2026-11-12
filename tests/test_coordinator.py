@@ -6,6 +6,8 @@ from __future__ import annotations
 from datetime import timedelta
 from types import SimpleNamespace
 
+import pytest
+
 from custom_components.swiss_transport.coordinator import (
     _apply_ojp,
     _apply_rate_limit_backoff,
@@ -79,6 +81,61 @@ def test_connection_legs_and_changes():
     assert parsed["arrival_ts"] == 6400
     assert [leg["line"] for leg in parsed["legs"]] == ["IC", "S"]
     assert parsed["changes"] == [{"station": "Zürich HB", "arr_platform": "33", "dep_platform": "43"}]
+
+
+def _simple_connection(prognosis):
+    return {
+        "from": {"departure": "2026-11-09T07:00:00+0100", "departureTimestamp": 1000, "platform": "4", "delay": 0,
+                 "prognosis": {"departure": prognosis}},
+        "to": {"arrival": "2026-11-09T07:05:00+0100", "arrivalTimestamp": 1300, "platform": "2"},
+        "duration": "00d00:05:00", "transfers": 0, "products": ["S9"],
+        "sections": [
+            {"journey": {"category": "S", "number": "9", "to": "Bern"},
+             "departure": {"station": {"name": "Aarau"}, "platform": "2"},
+             "arrival": {"station": {"name": "Bern"}, "platform": "22"}},
+        ],
+    }
+
+
+def test_connection_carries_departure_prognosis():
+    con = _parse_connection(_simple_connection("2026-11-09T07:02:00+0100"))
+    assert con["departure_prognosis"] == "2026-11-09T07:02:00+0100"
+
+
+def test_connection_without_prognosis_has_none():
+    assert _parse_connection(_simple_connection(None))["departure_prognosis"] is None
+
+
+LINE_LABEL_MODES = [
+    # category, number, mode, expected
+    ("S", "9", "category", "S"),
+    ("S", "9", "full", "S9"),
+    ("S", "9", "number", "9"),
+    ("IC", "8", "full", "IC8"),
+    ("IC", "8", "number", "8"),
+    # Bus and tram show the number in every mode.
+    ("B", "34", "category", "34"),
+    ("B", "34", "number", "34"),
+    # A zero-padded number is a run id: only the category stays.
+    ("ICE", "000070", "full", "ICE"),
+    ("ICE", "000070", "number", "ICE"),
+]
+
+
+@pytest.mark.parametrize(("category", "number", "mode", "expected"), LINE_LABEL_MODES)
+def test_line_label_option(category, number, mode, expected):
+    entry = {
+        "category": category, "number": number, "to": "Bern", "operator": "RBS",
+        "stop": {"departure": "2026-11-09T07:12:00+0100", "departureTimestamp": 1794207120, "delay": 0},
+    }
+    assert _parse_departure(entry, mode)["line"] == expected
+    con = _simple_connection(None)
+    con["sections"][0]["journey"].update({"category": category, "number": number})
+    assert _parse_connection(con, mode)["legs"][0]["line"] == expected
+
+
+def test_line_label_default_is_the_category():
+    assert _parse_departure({**BOARD_ENTRY, "category": "S", "number": "9"})["line"] == "S"
 
 
 def test_duration_parser():
