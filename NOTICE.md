@@ -24,7 +24,8 @@ pictograms are not the SBB logo; the SBB trademarks remain with SBB.
 
 ## 3. Line colours — Traewelling/line-colors
 
-The operator line colours of buses and trams (badge background and text)
+The operator line colours of buses, trams and the Bern S-Bahn trains (badge
+background and text)
 come from the **Traewelling/line-colors** collection (`line-colors-CH.csv`),
 published under **CC0 1.0** (public domain dedication). The table ships as
 `custom_components/swiss_transport/frontend/line-colors.json` and is

@@ -216,4 +216,22 @@ globalThis.fetch = async () => ({
   assert.equal(rows(card.shadowRoot.innerHTML), 2, "hide_departed does not apply to a timetable");
 }
 
+// Timetable mode names the lines as the sensor does (attribute line_label):
+// bus and tram by number, trains by the chosen label.
+for (const [labelMode, train] of [[undefined, "S"], ["category", "S"], ["full", "S9"], ["number", "9"]]) {
+  const card = new Card();
+  card.setConfig({ entity: "sensor.c", show_clock: false, datetime_entity: "datetime.t", mode_entity: "select.m" });
+  card.hass = {
+    language: "de",
+    states: {
+      "sensor.c": { attributes: { connections: [], from_id: "1", to_id: "2", from_name: "A", to_name: "B", line_label: labelMode } },
+      "datetime.t": { state: new Date(NOW).toISOString().slice(0, 19).replace("T", " ") },
+      "select.m": { state: "depart" },
+    },
+  };
+  await new Promise((r) => setTimeout(r, 0));
+  const lines = card._fetched.map((con) => con.legs[0].line);
+  assert.deepEqual(lines, [train, train, "21"], `timetable legs with line_label ${labelMode}`);
+}
+
 console.log("connection-card options: ok");

@@ -1,12 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.12.0 — 2026-11-12
 
+- **A compact board from the connection card, Bern S-Bahn colours and a choice of line names**, contributed by @sbaerlocher (#5) — the five entries that follow.
 - **Option `line_label`** names train lines `S` (category only, the default and the label so far), `S9` (category and number) or `9`. It applies to the sensors and to the connection legs, so cards and templates agree; bus and tram keep showing the number. Set it under Configure.
 - **Line colours for RBS and BLS trains.** The Bern S-Bahn lines (RBS S7 to S9, BLS S1 to S6 and variants) get their line colour from `line-colors.json` (Traewelling/line-colors, `scripts/generate_line_colors.py` keeps those two train networks). The cards look trains up as category plus number ("S9"), buses and trams by number as before, and white text on a light colour turns black.
 - **Connection card options for a compact board.** `from` keeps connections that board at a stop whose name starts with the value (the planner also offers a walk to a neighbouring stop and a ride from there), `hide_departed` drops connections that already left, `group_by_mode` adds a heading per transport mode, `show_arrival: false` hides arrival and duration, and `stale_threshold` (seconds) shows a badge when the sensor's first connection left that long ago. All are off by default and available in the visual editor; `rows` now applies after `from` and `hide_departed`. `node tests/frontend/connection-card.test.mjs` covers them.
 - **Connections carry `departure_prognosis`**, the forecast departure time (null when the source has none), next to `delay`.
 - **Fetch timeout 45 s** instead of 30 s: `/connections` answered in up to 36.5 s in measurements and was cut off.
+- **Bus and tram legs of a connection carry the line number.** `legs[].line` held the category (`B`, `T`) and now holds the number (`34`), as the departure board always did. A template that reads the `line` of a leg sees the new value.
+- **Timetable browsing names the lines the same way.** The cards read the timetable for another time themselves; they now follow the option `line_label` there as well. Both sensors carry the new attribute `line_label` for that.
 
 ## 1.11.2 — 2026-11-09
 

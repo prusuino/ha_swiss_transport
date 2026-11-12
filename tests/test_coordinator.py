@@ -134,6 +134,12 @@ def test_line_label_option(category, number, mode, expected):
     assert _parse_connection(con, mode)["legs"][0]["line"] == expected
 
 
+def test_bus_and_tram_legs_carry_the_number():
+    con = _simple_connection(None)
+    con["sections"][0]["journey"].update({"category": "T", "number": "10"})
+    assert _parse_connection(con)["legs"][0]["line"] == "10"
+
+
 def test_line_label_default_is_the_category():
     assert _parse_departure({**BOARD_ENTRY, "category": "S", "number": "9"})["line"] == "S"
 

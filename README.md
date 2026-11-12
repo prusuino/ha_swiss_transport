@@ -41,13 +41,13 @@ When you add the integration you first choose a **mode** — a departure board o
 
 | Entity | Type | Description |
 |---|---|---|
-| `sensor.swiss_transport_<station>_<tag>` | Sensor | State = the next departure (timestamp). Attributes: `departures` (the full upcoming board — line, category, destination, platform, delay, operator, departure time, plus `cancelled`/`occupancy` when real-time is enabled), `departure_count`, station name, **address** (reverse-geocoded), coordinates, `realtime` (bool) and `alerts` (disruption messages, real-time only). |
+| `sensor.swiss_transport_<station>_<tag>` | Sensor | State = the next departure (timestamp). Attributes: `departures` (the full upcoming board — line, category, destination, platform, delay, operator, departure time, plus `cancelled`/`occupancy` when real-time is enabled), `departure_count`, station name, **address** (reverse-geocoded), coordinates, `line_label` (how train lines are named, see the options), `realtime` (bool) and `alerts` (disruption messages, real-time only). |
 
 ### Connection (from → to)
 
 | Entity | Type | Description |
 |---|---|---|
-| `sensor.swiss_transport_<from>_<to>_<tag>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, delay, `duration_min`, `transfers`, the `products`/lines used, and `changes` — the transfer stations with arrival → onward platform), `connection_count`, from/to names and station ids. |
+| `sensor.swiss_transport_<from>_<to>_<tag>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, delay, `departure_prognosis` — the forecast departure time when the source has one —, `duration_min`, `transfers`, the `products`/lines used, and `changes` — the transfer stations with arrival → onward platform), `connection_count`, `line_label`, from/to names and station ids. |
 
 `<station>`, `<from>` and `<to>` are the stop names as the timetable API returns them, slugified; `<tag>` is a short discriminator — the last four characters of the config entry id, lower-cased — that keeps two stops whose names slugify to the same text apart (say the railway station "Zürich HB" and a tram stop "Zürich, HB"). The board of Zürich HB is thus something like `sensor.swiss_transport_zurich_hb_k7q2`, the connection Bern → Zürich HB `sensor.swiss_transport_bern_zurich_hb_m3xz`. The integration suggests these object ids when an entity is first created, so they do not depend on your Home Assistant language — only the entity's displayed name ("Departures" / "Abfahrten") is localized. Entities created by versions before 1.4.0 keep the ids they have (without the tag). Like any entity, they can be renamed in the entity settings afterwards.
 
@@ -99,7 +99,7 @@ mode_entity: select.swiss_transport_mode        # optional, follow timetable bro
 
 `from`, `hide_departed`, `group_by_mode`, `show_arrival` and `stale_threshold` make the card a compact board of one stop: the planner also offers a walk to a neighbouring stop and a ride from there, which `from` leaves out. `rows` applies after `from` and `hide_departed`. Line colours exist for RBS and BLS S-Bahn trains as well as for the bus and tram networks in `line-colors.json`.
 
-The integration's **Options** (Settings → Devices & services → Configure) have a **Line name** for trains: `S` (the category only, default), `S9` (category and number) or `9`. Bus and tram always show the number.
+The integration's **Options** (Settings → Devices & services → Configure) have a **Line name** for trains: `S` (the category only, default), `S9` (category and number) or `9`. Bus and tram always show the number. The cards name the lines the same way while you browse the timetable.
 
 **`swiss-transport-controls-card`** — the [timetable browsing](#timetable-browsing-optional) selector bar: a **Live / Departure / Arrival** toggle plus a date/time picker. The [dashboard strategy](#2a-ready-made-dashboard-recommended) puts it at the top, and you can place it on any dashboard yourself. On a sections view it spans the full width by default and can be resized:
 

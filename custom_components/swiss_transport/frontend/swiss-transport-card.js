@@ -306,21 +306,32 @@ function fmtSelected(state) {
   return { date, time, datetime: `${date} ${time}`, dateObj: dt };
 }
 
+/* Line label from the API's category and number (mirrors the coordinator's
+ * _line_label): bus and tram show the number; a train is named by its
+ * category ("S", the default), category and number ("full", "S9") or the
+ * number ("number", "9"). A zero-padded number is a run id, so only the
+ * category remains. */
+const LOCAL_CATEGORIES = ["B", "T", "BUS", "TRM", "NFB", "NFT"];
+function lineLabel(category, number, mode) {
+  if (LOCAL_CATEGORIES.includes(category) && number) return number;
+  const isDigit = /^\d+$/.test(number);
+  if (!number || (isDigit && number.startsWith("0"))) return category || number;
+  if (mode === "number") return number;
+  if (mode !== "full" && isDigit) return category || number;
+  return `${category}${number}`;
+}
+
 /* Flatten one stationboard entry (mirrors the coordinator's _parse_departure).
  * The API keeps the board time in the departure fields for both departure and
  * arrival boards (arrival timestamps come back null), so we always read those;
  * `type=arrival` already selects the right set of trains. */
-function parseBoardEntry(entry) {
+function parseBoardEntry(entry, labelMode) {
   const stop = entry.stop || {};
   const ts = stop.departureTimestamp;
   if (!ts) return null;
   const category = (entry.category || "").trim();
   const number = (entry.number || "").trim();
-  const isDigit = /^\d+$/.test(number);
-  let line;
-  if (["B", "T", "BUS", "TRM", "NFB", "NFT"].includes(category) && number) line = number;
-  else if (category && number && !isDigit) line = `${category}${number}`;
-  else line = category || number || "?";
+  const line = lineLabel(category, number, labelMode) || "?";
   return {
     line,
     category,
@@ -346,7 +357,7 @@ function durationToMinutes(value) {
 }
 
 /* Mirrors the coordinator's _parse_connection (incl. legs/changes). */
-function parseConnectionEntry(con) {
+function parseConnectionEntry(con, labelMode) {
   const frm = con.from || {};
   const to = con.to || {};
   if (!frm.departureTimestamp) return null;
@@ -356,8 +367,7 @@ function parseConnectionEntry(con) {
     if (!j) continue;
     const cat = (j.category || "").trim();
     const num = (j.number || "").trim();
-    const isDigit = /^\d+$/.test(num);
-    const line = num && !isDigit ? `${cat}${num}` : cat || num || "";
+    const line = lineLabel(cat, num, labelMode);
     const sd = sec.departure || {};
     const sa = sec.arrival || {};
     legs.push({
@@ -395,14 +405,14 @@ function parseConnectionEntry(con) {
   };
 }
 
-async function fetchBoardRaw(stationId, limit, datetime, arrival) {
+async function fetchBoardRaw(stationId, limit, datetime, arrival, labelMode) {
   const p = new URLSearchParams({ id: stationId, limit: String(limit) });
   if (datetime) p.set("datetime", datetime);
   if (arrival) p.set("type", "arrival");
   const resp = await fetch(`${API_BASE}/stationboard?${p.toString()}`);
   const data = await resp.json();
   return (data.stationboard || [])
-    .map((e) => parseBoardEntry(e))
+    .map((e) => parseBoardEntry(e, labelMode))
     .filter((x) => x)
     .sort((a, b) => a.departure_ts - b.departure_ts);
 }
@@ -414,14 +424,14 @@ async function fetchBoardRaw(stationId, limit, datetime, arrival) {
  * correct again - the earlier window then just repeats the same rows. */
 const BOARD_SHIFT_SUSPECT_S = 45 * 60;
 
-async function fetchBoard(stationId, limit, datetime, arrival, selectedTs) {
-  const list = await fetchBoardRaw(stationId, limit, datetime, arrival);
+async function fetchBoard(stationId, limit, datetime, arrival, selectedTs, labelMode) {
+  const list = await fetchBoardRaw(stationId, limit, datetime, arrival, labelMode);
   const ref = selectedTs || Math.floor(Date.now() / 1000);
   if (list.length && list[0].departure_ts - ref > BOARD_SHIFT_SUSPECT_S) {
     const earlier = fmtSelected(new Date((ref - 3600) * 1000));
     if (earlier) {
       try {
-        const again = (await fetchBoardRaw(stationId, limit * 2, earlier.datetime, arrival))
+        const again = (await fetchBoardRaw(stationId, limit * 2, earlier.datetime, arrival, labelMode))
           .filter((d) => d.departure_ts >= ref - 60);
         if (again.length) return again.slice(0, limit);
       } catch (e) {
@@ -432,7 +442,7 @@ async function fetchBoard(stationId, limit, datetime, arrival, selectedTs) {
   return list;
 }
 
-async function fetchConnections(fromId, toId, limit, date, time, isArrival) {
+async function fetchConnections(fromId, toId, limit, date, time, isArrival, labelMode) {
   const p = new URLSearchParams({ from: fromId, to: toId, limit: String(limit) });
   if (date) p.set("date", date);
   if (time) p.set("time", time);
@@ -440,7 +450,7 @@ async function fetchConnections(fromId, toId, limit, date, time, isArrival) {
   const resp = await fetch(`${API_BASE}/connections?${p.toString()}`);
   const data = await resp.json();
   return (data.connections || [])
-    .map(parseConnectionEntry)
+    .map((con) => parseConnectionEntry(con, labelMode))
     .filter((x) => x)
     .sort((a, b) => a.departure_ts - b.departure_ts);
 }
@@ -541,10 +551,11 @@ class SwissTransportCard extends HTMLElement {
     const stationId = st && st.attributes && st.attributes.station_id;
     if (!stationId) return;
     const arrival = mode === "arrive";
-    const sig = `${stationId}|${sel.datetime}|${arrival}|${this._maxRows()}`;
+    const labelMode = st.attributes.line_label;
+    const sig = `${stationId}|${sel.datetime}|${arrival}|${this._maxRows()}|${labelMode}`;
     if (sig === this._sig) return;
     this._sig = sig;
-    fetchBoard(stationId, this._maxRows(), sel.datetime, arrival, Math.floor(sel.dateObj.getTime() / 1000))
+    fetchBoard(stationId, this._maxRows(), sel.datetime, arrival, Math.floor(sel.dateObj.getTime() / 1000), labelMode)
       .then((list) => {
         if (this._sig === sig) {
           this._fetched = list;
@@ -1088,10 +1099,10 @@ class SwissTransportConnectionCard extends HTMLElement {
     const a = (st && st.attributes) || {};
     if (!a.from_id || !a.to_id) return;
     const isArrival = mode === "arrive";
-    const sig = `${a.from_id}|${a.to_id}|${sel.datetime}|${isArrival}|${this._maxRows()}`;
+    const sig = `${a.from_id}|${a.to_id}|${sel.datetime}|${isArrival}|${this._maxRows()}|${a.line_label}`;
     if (sig === this._sig) return;
     this._sig = sig;
-    fetchConnections(a.from_id, a.to_id, this._maxRows(), sel.date, sel.time, isArrival)
+    fetchConnections(a.from_id, a.to_id, this._maxRows(), sel.date, sel.time, isArrival, a.line_label)
       .then((list) => {
         if (this._sig === sig) {
           this._fetched = list;

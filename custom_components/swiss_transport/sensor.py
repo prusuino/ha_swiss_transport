@@ -14,9 +14,11 @@ from homeassistant.util import slugify
 from .const import (
     CONF_ENTRY_TYPE,
     CONF_LIMIT,
+    CONF_LINE_LABEL,
     CONF_FROM_ID,
     CONF_FROM_NAME,
     DEFAULT_LIMIT,
+    DEFAULT_LINE_LABEL,
     CONF_STATION_NAME,
     CONF_TO_ID,
     CONF_TO_NAME,
@@ -60,6 +62,12 @@ async def async_setup_entry(
 def _configured_limit(entry: ConfigEntry) -> int:
     """The number of entries the entry is configured to fetch (Configure dialog)."""
     return int(entry.options.get(CONF_LIMIT, entry.data.get(CONF_LIMIT, DEFAULT_LIMIT)))
+
+
+def _line_label(entry: ConfigEntry) -> str:
+    """How train lines are named; the cards name them the same way when they
+    read the timetable for another time themselves."""
+    return entry.options.get(CONF_LINE_LABEL, DEFAULT_LINE_LABEL)
 
 
 class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator], SensorEntity):
@@ -113,6 +121,7 @@ class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator
             # themselves by the configured limit.
             "departure_count": len(deps),
             "limit": _configured_limit(self._entry),
+            "line_label": _line_label(self._entry),
             # True when the board was enriched with opentransportdata.swiss
             # OJP real-time data (fresher delays, cancellations, occupancy).
             "realtime": bool(data.get("realtime")),
@@ -166,5 +175,6 @@ class SwissConnectionSensor(CoordinatorEntity[SwissConnectionCoordinator], Senso
             "to_id": self._entry.data.get(CONF_TO_ID),
             "connection_count": len(cons),
             "limit": _configured_limit(self._entry),
+            "line_label": _line_label(self._entry),
             "connections": cons,
         }
