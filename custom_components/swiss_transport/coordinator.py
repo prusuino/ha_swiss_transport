@@ -459,6 +459,8 @@ def _parse_connection(con: dict) -> dict | None:
         "departure_ts": int(dep_ts),
         "dep_platform": frm.get("platform"),
         "delay": int(dep_delay) if isinstance(dep_delay, (int, float)) else None,
+        # Forecast departure time; null when the source has none.
+        "departure_prognosis": (frm.get("prognosis") or {}).get("departure"),
         "arrival": to.get("arrival"),
         "arrival_ts": int(to["arrivalTimestamp"]) if to.get("arrivalTimestamp") else None,
         "arr_platform": to.get("platform"),

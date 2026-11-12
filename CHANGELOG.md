@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Connections carry `departure_prognosis`**, the forecast departure time (null when the source has none), next to `delay`.
+- **Fetch timeout 45 s** instead of 30 s: `/connections` answered in up to 36.5 s in measurements and was cut off.
+
 ## 1.11.2 — 2026-11-09
 
 - **Controls card: no empty boards after a long break.** Switching from Live to Departure or Arrival with a date/time that is more than an hour in the past (left over from an earlier browse) moves the time to now first.

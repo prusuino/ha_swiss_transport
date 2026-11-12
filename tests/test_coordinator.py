@@ -81,6 +81,29 @@ def test_connection_legs_and_changes():
     assert parsed["changes"] == [{"station": "Zürich HB", "arr_platform": "33", "dep_platform": "43"}]
 
 
+def _simple_connection(prognosis):
+    return {
+        "from": {"departure": "2026-11-09T07:00:00+0100", "departureTimestamp": 1000, "platform": "4", "delay": 0,
+                 "prognosis": {"departure": prognosis}},
+        "to": {"arrival": "2026-11-09T07:05:00+0100", "arrivalTimestamp": 1300, "platform": "2"},
+        "duration": "00d00:05:00", "transfers": 0, "products": ["S9"],
+        "sections": [
+            {"journey": {"category": "S", "number": "9", "to": "Bern"},
+             "departure": {"station": {"name": "Aarau"}, "platform": "2"},
+             "arrival": {"station": {"name": "Bern"}, "platform": "22"}},
+        ],
+    }
+
+
+def test_connection_carries_departure_prognosis():
+    con = _parse_connection(_simple_connection("2026-11-09T07:02:00+0100"))
+    assert con["departure_prognosis"] == "2026-11-09T07:02:00+0100"
+
+
+def test_connection_without_prognosis_has_none():
+    assert _parse_connection(_simple_connection(None))["departure_prognosis"] is None
+
+
 def test_duration_parser():
     assert _duration_to_minutes("00d00:27:00") == 27
     assert _duration_to_minutes("01d02:05:00") == 1565

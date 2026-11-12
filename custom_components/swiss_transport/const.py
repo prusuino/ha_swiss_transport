@@ -19,7 +19,8 @@ CONNECTION_UPDATE_INTERVAL_SECONDS = 300
 # Once the API answers HTTP 429 the daily quota is exhausted — every further
 # poll is a wasted request. Back off this long, then probe again.
 RATE_LIMIT_BACKOFF_SECONDS = 1800
-FETCH_TIMEOUT_SECONDS = 30
+# /connections answered in up to 36.5 s in measurements; 30 s cut those off.
+FETCH_TIMEOUT_SECONDS = 45
 
 # How many upcoming departures to fetch/show by default.
 DEFAULT_LIMIT = 8
