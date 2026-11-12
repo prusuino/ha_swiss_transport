@@ -24,6 +24,15 @@ FETCH_TIMEOUT_SECONDS = 45
 
 # How many upcoming departures to fetch/show by default.
 DEFAULT_LIMIT = 8
+
+# How a train line is named: "category" ("S" for S9, the digit counts as run id,
+# the long-standing label), "full" ("S9") or "number" ("9"). Bus and tram always
+# show the number.
+LINE_LABEL_CATEGORY = "category"
+LINE_LABEL_FULL = "full"
+LINE_LABEL_NUMBER = "number"
+LINE_LABELS = [LINE_LABEL_CATEGORY, LINE_LABEL_FULL, LINE_LABEL_NUMBER]
+DEFAULT_LINE_LABEL = LINE_LABEL_CATEGORY
 MAX_LIMIT = 20
 
 # Which kind of config entry this is: a station departure board, or a
@@ -37,6 +46,7 @@ CONF_STATION_ID = "station_id"
 CONF_STATION_NAME = "station_name"
 CONF_LIMIT = "limit"
 CONF_TRANSPORTATIONS = "transportations"
+CONF_LINE_LABEL = "line_label"
 
 # Optional real-time enrichment via the official opentransportdata.swiss
 # Open Journey Planner (OJP 2.0) API. When a token is configured, the station

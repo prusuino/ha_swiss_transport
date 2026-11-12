@@ -36,6 +36,7 @@ from .const import (
     CONF_FROM_ID,
     CONF_FROM_NAME,
     CONF_LIMIT,
+    CONF_LINE_LABEL,
     CONF_OJP_TOKEN,
     CONF_STATION_ID,
     CONF_STATION_NAME,
@@ -44,10 +45,12 @@ from .const import (
     CONF_TRANSPORTATIONS,
     DEFAULT_CONNECTION_LIMIT,
     DEFAULT_LIMIT,
+    DEFAULT_LINE_LABEL,
     DOMAIN,
     ENTRY_TYPE_CONNECTION,
     ENTRY_TYPE_STATION,
     MAX_CONNECTION_LIMIT,
+    LINE_LABELS,
     MAX_LIMIT,
     TRANSPORT_TYPES,
 )
@@ -65,6 +68,17 @@ MODE_CONNECTION = "connection"
 def _limit_selector() -> NumberSelector:
     return NumberSelector(
         NumberSelectorConfig(min=1, max=MAX_LIMIT, step=1, mode=NumberSelectorMode.BOX)
+    )
+
+
+def _line_label_selector() -> SelectSelector:
+    # Labels come from strings.json (selector.line_label).
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=list(LINE_LABELS),
+            mode=SelectSelectorMode.DROPDOWN,
+            translation_key=CONF_LINE_LABEL,
+        )
     )
 
 
@@ -381,6 +395,7 @@ class SwissTransportOptionsFlow(OptionsFlow):
             # the OJP token synced into a connection entry — survive the save.
             new = dict(options)
             new[CONF_LIMIT] = int(user_input.get(CONF_LIMIT, DEFAULT_LIMIT))
+            new[CONF_LINE_LABEL] = user_input.get(CONF_LINE_LABEL, DEFAULT_LINE_LABEL)
             if not is_connection:
                 new[CONF_TRANSPORTATIONS] = user_input.get(CONF_TRANSPORTATIONS) or []
                 token = (user_input.get(CONF_OJP_TOKEN) or "").strip()
@@ -418,4 +433,7 @@ class SwissTransportOptionsFlow(OptionsFlow):
             fields[
                 vol.Optional(CONF_OJP_TOKEN, default=_effective_token(self.hass))
             ] = _token_selector()
+        fields[
+            vol.Optional(CONF_LINE_LABEL, default=options.get(CONF_LINE_LABEL, DEFAULT_LINE_LABEL))
+        ] = _line_label_selector()
         return self.async_show_form(step_id="init", data_schema=vol.Schema(fields), errors=errors)

@@ -74,10 +74,12 @@
         "data": {
           "limit": "Nombre affiché",
           "transportations": "Types de transport (vide = tous)",
-          "ojp_token": "Jeton temps réel (facultatif)"
+          "ojp_token": "Jeton temps réel (facultatif)",
+          "line_label": "Nom de ligne"
         },
         "data_description": {
-          "ojp_token": "Jeton d'API OJP 2.0 facultatif de opentransportdata.swiss pour des retards plus frais, les suppressions, les changements de voie et l'occupation. Saisi une fois, il enrichit chaque tableau des départs. Laissez vide pour n'utiliser que opendata.ch."
+          "ojp_token": "Jeton d'API OJP 2.0 facultatif de opentransportdata.swiss pour des retards plus frais, les suppressions, les changements de voie et l'occupation. Saisi une fois, il enrichit chaque tableau des départs. Laissez vide pour n'utiliser que opendata.ch.",
+          "line_label": "Nom des lignes de train : « S » garde la catégorie seule, « S9 » catégorie et numéro, « 9 » le numéro seul. Bus et tram affichent toujours le numéro."
         }
       }
     },
@@ -132,6 +134,13 @@
         "bus": "Bus",
         "ship": "Bateau",
         "cableway": "Téléphérique"
+      }
+    },
+    "line_label": {
+      "options": {
+        "category": "S (catégorie seule)",
+        "full": "S9 (catégorie et numéro)",
+        "number": "9 (numéro seul)"
       }
     }
   },

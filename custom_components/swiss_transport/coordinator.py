@@ -20,13 +20,17 @@ from .issues import IssueReporter
 from .const import (
     API_BASE,
     CONF_LIMIT,
+    CONF_LINE_LABEL,
     CONF_OJP_TOKEN,
     CONF_STATION_ID,
     CONF_TRANSPORTATIONS,
     CONNECTION_UPDATE_INTERVAL_SECONDS,
     DEFAULT_LIMIT,
+    DEFAULT_LINE_LABEL,
     DOMAIN,
     FETCH_TIMEOUT_SECONDS,
+    LINE_LABEL_NUMBER,
+    LINE_LABEL_CATEGORY,
     OJP_ENDPOINT,
     OJP_REQUESTOR_REF,
     RATE_LIMIT_BACKOFF_SECONDS,
@@ -98,7 +102,31 @@ async def async_search_stations(hass: HomeAssistant, query: str) -> list[dict]:
     return result
 
 
-def _parse_departure(entry: dict) -> dict | None:
+_LOCAL_CATEGORIES = ("B", "T", "BUS", "TRM", "NFB", "NFT")
+
+
+def _line_label(category: str, number: str, mode: str = DEFAULT_LINE_LABEL) -> str:
+    """User-facing line label from the API's category and number.
+
+    Bus and tram show the number alone ("34"). For trains the number is the
+    line number (S 9, IC 8) and the run id lives in `name`; `mode` decides:
+    "category" keeps only the category ("S", a purely numeric number counts as
+    run id), "full" prefixes it ("S9") and "number" shows only the number ("9").
+    A zero-padded number is a run id in every mode (ICE "000070"), so only the
+    category remains.
+    """
+    if category in _LOCAL_CATEGORIES and number:
+        return number
+    if not number or (number.isdigit() and number.startswith("0")):
+        return category or number
+    if mode == LINE_LABEL_NUMBER:
+        return number
+    if mode == LINE_LABEL_CATEGORY and number.isdigit():
+        return category or number
+    return f"{category}{number}"
+
+
+def _parse_departure(entry: dict, line_label: str = DEFAULT_LINE_LABEL) -> dict | None:
     """Flatten one stationboard entry into a compact departure dict."""
     stop = entry.get("stop") or {}
     ts = stop.get("departureTimestamp")
@@ -106,15 +134,7 @@ def _parse_departure(entry: dict) -> dict | None:
         return None
     category = (entry.get("category") or "").strip()
     number = (entry.get("number") or "").strip()
-    # Line label: for trains the category already carries the product (S, IC,
-    # IR, RE), the number is the run id and not user-facing; for bus/tram the
-    # number IS the line, so combine them.
-    if category in ("B", "T", "BUS", "TRM", "NFB", "NFT") and number:
-        line = number
-    elif category and number and not number.isdigit():
-        line = f"{category}{number}"
-    else:
-        line = category or number or "?"
+    line = _line_label(category, number, line_label) or "?"
 
     delay = stop.get("delay")
     return {
@@ -147,12 +167,12 @@ BOARD_SHIFT_SUSPECT_SECONDS = 45 * 60
 BOARD_SHIFT_LOOKBACK = timedelta(hours=1)
 
 
-def _parse_board(data: dict) -> list[dict]:
+def _parse_board(data: dict, line_label: str = DEFAULT_LINE_LABEL) -> list[dict]:
     """Flatten and sort the departures of one stationboard answer."""
     departures = []
     for entry in data.get("stationboard", []):
         try:
-            dep = _parse_departure(entry)
+            dep = _parse_departure(entry, line_label)
         except Exception:  # noqa: BLE001 - one malformed entry must never kill the refresh
             _LOGGER.debug("Skipping malformed stationboard entry", exc_info=True)
             continue
@@ -171,7 +191,11 @@ async def _async_get_board(session, params: dict) -> dict:
 
 
 async def async_fetch_stationboard(
-    hass: HomeAssistant, station_id: str, limit: int, transportations: list[str] | None
+    hass: HomeAssistant,
+    station_id: str,
+    limit: int,
+    transportations: list[str] | None,
+    line_label: str = DEFAULT_LINE_LABEL,
 ) -> dict:
     """Fetch the stationboard for one station."""
     session = async_get_clientsession(hass)
@@ -180,7 +204,7 @@ async def async_fetch_stationboard(
         # The API accepts the parameter repeated once per type.
         params["transportations"] = transportations
     data = await _async_get_board(session, params)
-    departures = _parse_board(data)
+    departures = _parse_board(data, line_label)
 
     now = time.time()
     if departures and departures[0]["departure_ts"] - now > BOARD_SHIFT_SUSPECT_SECONDS:
@@ -193,7 +217,7 @@ async def async_fetch_stationboard(
         except Exception:  # noqa: BLE001 - keep the first answer rather than fail the refresh
             _LOGGER.debug("Second stationboard request (one hour earlier) failed", exc_info=True)
         else:
-            fresh = [d for d in _parse_board(again) if d["departure_ts"] >= now - 60]
+            fresh = [d for d in _parse_board(again, line_label) if d["departure_ts"] >= now - 60]
             if fresh:
                 _LOGGER.debug(
                     "Stationboard %s started %d min ahead; using the one-hour-earlier window",
@@ -412,7 +436,7 @@ def _duration_to_minutes(value) -> int | None:
         return None
 
 
-def _parse_connection(con: dict) -> dict | None:
+def _parse_connection(con: dict, line_label: str = DEFAULT_LINE_LABEL) -> dict | None:
     frm = con.get("from") or {}
     to = con.get("to") or {}
     dep_ts = frm.get("departureTimestamp")
@@ -428,7 +452,7 @@ def _parse_connection(con: dict) -> dict | None:
             continue  # walking section
         cat = (journey.get("category") or "").strip()
         num = (journey.get("number") or "").strip()
-        line = f"{cat}{num}" if num and not str(num).isdigit() else (cat or num or "")
+        line = _line_label(cat, num, line_label)
         sec_dep = sec.get("departure") or {}
         sec_arr = sec.get("arrival") or {}
         legs.append(
@@ -473,7 +497,11 @@ def _parse_connection(con: dict) -> dict | None:
 
 
 async def async_fetch_connections(
-    hass: HomeAssistant, from_id: str, to_id: str, limit: int
+    hass: HomeAssistant,
+    from_id: str,
+    to_id: str,
+    limit: int,
+    line_label: str = DEFAULT_LINE_LABEL,
 ) -> dict:
     """Fetch upcoming connections between two stations."""
     session = async_get_clientsession(hass)
@@ -486,7 +514,7 @@ async def async_fetch_connections(
     connections = []
     for con in data.get("connections", []):
         try:
-            parsed = _parse_connection(con)
+            parsed = _parse_connection(con, line_label)
         except Exception:  # noqa: BLE001 - one malformed connection must never kill the refresh
             _LOGGER.debug("Skipping malformed connection", exc_info=True)
             continue
@@ -565,7 +593,11 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
         ) or None
         try:
             result = await async_fetch_stationboard(
-                self.hass, data[CONF_STATION_ID], limit, transportations
+                self.hass,
+                data[CONF_STATION_ID],
+                limit,
+                transportations,
+                options.get(CONF_LINE_LABEL, DEFAULT_LINE_LABEL),
             )
         except Exception as err:
             _apply_rate_limit_backoff(self, err, UPDATE_INTERVAL_SECONDS)
@@ -637,7 +669,11 @@ class SwissConnectionCoordinator(DataUpdateCoordinator[dict]):
         limit = self._entry.options.get(CONF_LIMIT, data.get(CONF_LIMIT, DEFAULT_CONNECTION_LIMIT))
         try:
             result = await async_fetch_connections(
-                self.hass, data[CONF_FROM_ID], data[CONF_TO_ID], limit
+                self.hass,
+                data[CONF_FROM_ID],
+                data[CONF_TO_ID],
+                limit,
+                self._entry.options.get(CONF_LINE_LABEL, DEFAULT_LINE_LABEL),
             )
         except Exception as err:
             _apply_rate_limit_backoff(self, err, CONNECTION_UPDATE_INTERVAL_SECONDS)

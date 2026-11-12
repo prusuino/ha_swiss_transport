@@ -88,9 +88,18 @@ type: custom:swiss-transport-connection-card
 entity: sensor.swiss_transport_<from>_<to>_<tag>
 title: Bern → Zürich HB    # optional
 style: sbb                 # optional, "sbb" or "classic" (see the departure board)
+from: Aarau        # optional, only connections boarding at a stop whose name starts with this
+hide_departed: true        # optional, drop connections that already left
+group_by_mode: true        # optional, one heading per transport mode (train, tram, bus)
+show_arrival: false        # optional, hide arrival, platform and duration
+stale_threshold: 1800      # optional, seconds; shows a badge when the first connection left that long ago
 datetime_entity: datetime.swiss_transport_time  # optional, follow timetable browsing
 mode_entity: select.swiss_transport_mode        # optional, follow timetable browsing
 ```
+
+`from`, `hide_departed`, `group_by_mode`, `show_arrival` and `stale_threshold` make the card a compact board of one stop: the planner also offers a walk to a neighbouring stop and a ride from there, which `from` leaves out. `rows` applies after `from` and `hide_departed`. Line colours exist for RBS and BLS S-Bahn trains as well as for the bus and tram networks in `line-colors.json`.
+
+The integration's **Options** (Settings → Devices & services → Configure) have a **Line name** for trains: `S` (the category only, default), `S9` (category and number) or `9`. Bus and tram always show the number.
 
 **`swiss-transport-controls-card`** — the [timetable browsing](#timetable-browsing-optional) selector bar: a **Live / Departure / Arrival** toggle plus a date/time picker. The [dashboard strategy](#2a-ready-made-dashboard-recommended) puts it at the top, and you can place it on any dashboard yourself. On a sections view it spans the full width by default and can be resized:
 

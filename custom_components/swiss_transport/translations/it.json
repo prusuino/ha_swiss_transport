@@ -74,10 +74,12 @@
         "data": {
           "limit": "Numero mostrato",
           "transportations": "Mezzi di trasporto (vuoto = tutti)",
-          "ojp_token": "Token in tempo reale (facoltativo)"
+          "ojp_token": "Token in tempo reale (facoltativo)",
+          "line_label": "Nome della linea"
         },
         "data_description": {
-          "ojp_token": "Token API OJP 2.0 facoltativo di opentransportdata.swiss per ritardi più aggiornati, soppressioni, cambi di binario e occupazione. Inserito una volta, arricchisce ogni tabellone. Lascia vuoto per usare solo opendata.ch."
+          "ojp_token": "Token API OJP 2.0 facoltativo di opentransportdata.swiss per ritardi più aggiornati, soppressioni, cambi di binario e occupazione. Inserito una volta, arricchisce ogni tabellone. Lascia vuoto per usare solo opendata.ch.",
+          "line_label": "Nome delle linee ferroviarie: «S» tiene solo la categoria, «S9» categoria e numero, «9» solo il numero. Bus e tram mostrano sempre il numero."
         }
       }
     },
@@ -132,6 +134,13 @@
         "bus": "Bus",
         "ship": "Battello",
         "cableway": "Funivia"
+      }
+    },
+    "line_label": {
+      "options": {
+        "category": "S (solo categoria)",
+        "full": "S9 (categoria e numero)",
+        "number": "9 (solo numero)"
       }
     }
   },

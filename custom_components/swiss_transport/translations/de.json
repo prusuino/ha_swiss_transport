@@ -74,10 +74,12 @@
         "data": {
           "limit": "Angezeigte Anzahl",
           "transportations": "Verkehrsmittel (leer = alle)",
-          "ojp_token": "Echtzeit-Token (optional)"
+          "ojp_token": "Echtzeit-Token (optional)",
+          "line_label": "Linienname"
         },
         "data_description": {
-          "ojp_token": "Optionaler OJP-2.0-Token von opentransportdata.swiss für frischere Verspätungen, Ausfälle, Gleiswechsel und Auslastung. Einmal eingegeben, reichert er jede Abfahrtstafel an. Leer lassen = nur opendata.ch."
+          "ojp_token": "Optionaler OJP-2.0-Token von opentransportdata.swiss für frischere Verspätungen, Ausfälle, Gleiswechsel und Auslastung. Einmal eingegeben, reichert er jede Abfahrtstafel an. Leer lassen = nur opendata.ch.",
+          "line_label": "Name der Zuglinien: „S“ zeigt nur die Kategorie, „S9“ Kategorie und Nummer, „9“ nur die Nummer. Bus und Tram zeigen immer die Nummer."
         }
       }
     },
@@ -132,6 +134,13 @@
         "bus": "Bus",
         "ship": "Schiff",
         "cableway": "Seilbahn"
+      }
+    },
+    "line_label": {
+      "options": {
+        "category": "S (nur Kategorie)",
+        "full": "S9 (Kategorie und Nummer)",
+        "number": "9 (nur Nummer)"
       }
     }
   },
