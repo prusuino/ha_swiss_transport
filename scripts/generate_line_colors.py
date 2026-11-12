@@ -9,6 +9,8 @@ OUT = "custom_components/swiss_transport/frontend/line-colors.json"
 
 
 def is_train(short_name, line):
+    if short_name in TRAIN_NETS:
+        return False
     if short_name.startswith("s-bahn") or short_name.startswith("schweiz-fernverkehr") or short_name.startswith("rhb"):
         return True
     if short_name == "ostwind-ab" and line.startswith("S"):
@@ -18,7 +20,12 @@ def is_train(short_name, line):
     return False
 
 
+# Train networks whose lines are kept (the other train networks are skipped, the
+# cards colour buses and trams). Bern S-Bahn: RBS and BLS lines.
+TRAIN_NETS = {"s-bahn-bern-rbs", "s-bahn-bern-bls"}
+
 NETS = {
+    "s-bahn-bern-bls", "s-bahn-bern-rbs",
     "liemobil", "mobiju-pag", "ostwind-ab", "ostwind-vbsh", "tnw-aagl",
     "tnw-blt", "tnw-bvb", "tnw-pag", "transn", "zvv-vbz",
 }
@@ -36,6 +43,8 @@ def canon(short_name):
         "tnw-pag": "PAG_TNW",
         "transn": "TRN",
         "zvv-vbz": "VBZ",
+        "s-bahn-bern-rbs": "RBS",
+        "s-bahn-bern-bls": "BLS",
     }.get(short_name)
 
 
@@ -52,6 +61,8 @@ def main():
         if short_name not in NETS:
             continue
         line = r["lineName"].strip()
+        if short_name in TRAIN_NETS:
+            line = line.replace(" ", "")  # "S 9" in the CSV, "S9" on the cards
         if is_train(short_name, line):
             continue
         val = {"bg": r["backgroundColor"].strip(), "fg": r["textColor"].strip()}

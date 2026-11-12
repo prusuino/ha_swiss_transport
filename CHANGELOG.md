@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Line colours for RBS and BLS trains.** The Bern S-Bahn lines (RBS S7 to S9, BLS S1 to S6 and variants) get their line colour from `line-colors.json` (Traewelling/line-colors, `scripts/generate_line_colors.py` keeps those two train networks). The cards look trains up as category plus number ("S9"), buses and trams by number as before, and white text on a light colour turns black.
 - **Connection card options for a compact board.** `from` keeps connections that board at a stop whose name starts with the value (the planner also offers a walk to a neighbouring stop and a ride from there), `hide_departed` drops connections that already left, `group_by_mode` adds a heading per transport mode, `show_arrival: false` hides arrival and duration, and `stale_threshold` (seconds) shows a badge when the sensor's first connection left that long ago. All are off by default and available in the visual editor; `rows` now applies after `from` and `hide_departed`. `node tests/frontend/connection-card.test.mjs` covers them.
 - **Connections carry `departure_prognosis`**, the forecast departure time (null when the source has none), next to `delay`.
 - **Fetch timeout 45 s** instead of 30 s: `/connections` answered in up to 36.5 s in measurements and was cut off.

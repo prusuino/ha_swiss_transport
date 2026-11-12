@@ -190,6 +190,10 @@ function canonicalOperator(op) {
   if (code === "BVB") return "BVB";
   if (code === "VBSH" || code.startsWith("VBSH")) return "VBSH";
   if (code === "PAG") return "PAG";
+  // Bern S-Bahn operators (line-colors.json carries RBS and BLS trains).
+  if (code === "RBS") return "RBS";
+  // The API names BLS "BLS-bls" (and its subsidiaries alike).
+  if (code === "BLS" || code.startsWith("BLS-")) return "BLS";
   return null;
 }
 
@@ -207,7 +211,28 @@ function lineColor(dep, stationName) {
     const tbl = jura ? _lineColorData.LINE_COLORS_PAG_MOBIJU : _lineColorData.LINE_COLORS_PAG_TNW;
     return cleanLineColor(ownValue(tbl, line));
   }
-  return cleanLineColor(ownValue(ownValue(_lineColorData.LINE_COLORS, op), line));
+  // trains carry the category apart from the number ("S" + "9"),
+  // the table keys are the full label ("S9"); buses and tram are keyed by number.
+  // The label may be only "S" (option line_label), so the number is tried too.
+  const cat = String((dep && dep.category) || "").trim();
+  const num = String((dep && dep.number) || "").trim();
+  const table = ownValue(_lineColorData.LINE_COLORS, op);
+  // Category + number first: a train "9" must not take the colour of a bus "9".
+  const hit =
+    (cat && num ? ownValue(table, cat + num) : null) ||
+    ownValue(table, line) ||
+    (cat ? ownValue(table, cat + line) : null);
+  const lc = cleanLineColor(hit);
+  // Only for the operators added here; the existing bus and tram tables keep their text colour.
+  return op === "RBS" || op === "BLS" ? readableOnLight(lc) : lc;
+}
+
+/* the table has white text on light backgrounds (BLS S52 yellow);
+ * switch such a label to black. */
+function readableOnLight(lc) {
+  if (!lc || lc.fg.toLowerCase() !== "#ffffff") return lc;
+  const lum = hexLuminance(lc.bg);
+  return lum != null && lum > 0.6 ? { ...lc, fg: "#000000" } : lc;
 }
 
 /* Line numbers and operators come from entity attributes, so lookups only
@@ -243,18 +268,23 @@ function isDarkTheme(el) {
   return false;
 }
 
-/* True when a hex color is dark enough to need a light border for contrast. */
-function isDarkColor(hex) {
+/* luminance (0..1) of #rgb or #rrggbb, null for anything else. */
+function hexLuminance(hex) {
   const h = String(hex || "").trim().replace("#", "");
-  if (h.length !== 3 && h.length !== 6) return false;
+  if (h.length !== 3 && h.length !== 6) return null;
   const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
   const r = parseInt(full.substr(0, 2), 16);
   const g = parseInt(full.substr(2, 2), 16);
   const b = parseInt(full.substr(4, 2), 16);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+
+/* True when a hex color is dark enough to need a light border for contrast. */
+function isDarkColor(hex) {
   // Relative luminance (sRGB). Only near-black backgrounds get a light
   // border for contrast; dark (but not black) colors keep their own look.
-  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return lum < 0.12;
+  const lum = hexLuminance(hex);
+  return lum != null && lum < 0.12;
 }
 
 // Labels for the "timetable mode" banner shown when a card is following the
@@ -639,7 +669,8 @@ class SwissTransportCard extends HTMLElement {
             ? `${d.category} ${trainNum}`
             : d.line || d.category || "?";
         // Per-line colors for buses/trams from line-colors (when known).
-        const lc = !classic && (m === "bus" || m === "tram") ? lineColor(d, stationName) : null;
+        // trains too (RBS, BLS); lineColor() returns null for operators without a table.
+        const lc = !classic ? lineColor(d, stationName) : null;
         const badgeStyle = classic
           ? (pcls === "other" ? `background:${MODE_COLOR_CLASSIC[m]};color:#fff;` : "")
           : lc
@@ -1204,14 +1235,23 @@ class SwissTransportConnectionCard extends HTMLElement {
             // match the product to a ridden bus/tram leg (which carries the
             // operator). Train badges keep the Swiss product scheme.
             const leg = (Array.isArray(c.legs) ? c.legs : []).find((l) => {
+              // trains too (RBS, BLS). Bus and tram match by number as
+              // before; a train is matched as category + number ("S9", the API
+              // writes "IC 6" with a space), so a bus "9" never claims a train "9".
               const m = transportMode(l.category);
-              if (m !== "bus" && m !== "tram") return false;
               const prod = String(p || "").trim();
-              return String(l.number || "").trim() === prod || String(l.line || "").trim() === prod;
+              if (m === "bus" || m === "tram") {
+                return String(l.number || "").trim() === prod || String(l.line || "").trim() === prod;
+              }
+              const compact = (v) => String(v || "").replace(/\s+/g, "");
+              // A purely numeric label ("9" with line_label number) says nothing about
+              // the leg's mode, so only a label with letters counts.
+              const labelHit = !/^\d+$/.test(compact(l.line)) && compact(l.line) === compact(prod);
+              return compact(l.category) + compact(l.number) === compact(prod) || labelHit;
             });
             const lc = leg && !classic
               ? lineColor(
-                  { operator: leg.operator, line: leg.number || leg.line, category: leg.category },
+                  { operator: leg.operator, line: leg.number || leg.line, number: leg.number, category: leg.category },
                   attrs.from_name || ""
                 )
               : null;

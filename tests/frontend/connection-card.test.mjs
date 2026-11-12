@@ -7,6 +7,7 @@
 // without any of them renders as before.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 const defined = {};
 class ElementShim {
@@ -20,7 +21,15 @@ globalThis.customElements = { define: (name, cls) => (defined[name] = cls) };
 globalThis.window = globalThis;
 globalThis.setInterval = () => 0;
 globalThis.clearInterval = () => {};
-globalThis.fetch = () => Promise.reject(new Error("no network in tests"));
+// The card loads its line colours from the integration's static path; serve the
+// real file from disk, everything else is "no network".
+const LINE_COLORS = new URL("../../custom_components/swiss_transport/frontend/line-colors.json", import.meta.url);
+globalThis.fetch = async (url) => {
+  if (String(url).endsWith("line-colors.json")) {
+    return { ok: true, json: async () => JSON.parse(readFileSync(LINE_COLORS, "utf8")) };
+  }
+  throw new Error("no network in tests");
+};
 globalThis.getComputedStyle = () => ({ getPropertyValue: () => "" });
 globalThis.document = {
   createElement: () => {
@@ -40,7 +49,7 @@ await import("../../custom_components/swiss_transport/frontend/swiss-transport-c
 const Card = defined["swiss-transport-connection-card"];
 
 const NOW = Date.now();
-const conn = (min, { line = "S9", category = "S", from = "Aarau", delay = 0 } = {}) => ({
+const conn = (min, { line = "S9", category = "S", from = "Aarau", delay = 0, operator } = {}) => ({
   departure: new Date(NOW + min * 60000).toISOString().replace("Z", "+0000"),
   departure_ts: Math.floor((NOW + min * 60000) / 1000),
   delay,
@@ -50,7 +59,7 @@ const conn = (min, { line = "S9", category = "S", from = "Aarau", delay = 0 } = 
   duration_min: 10,
   transfers: 0,
   products: [line],
-  legs: [{ line, category, number: line.replace(/\D/g, ""), from_name: from, to_name: "Bern" }],
+  legs: [{ line, category, number: line.replace(/\D/g, ""), operator, from_name: from, to_name: "Bern" }],
 });
 const WALK_FIRST = conn(5, { line: "21", category: "B", from: "Buchs, Post" });
 const walkOnly = { ...conn(6), legs: [] };
@@ -68,8 +77,67 @@ const rows = (html) => (html.match(/class="cell dep"/g) || []).length;
 
 const list = [conn(-8), conn(3), WALK_FIRST, walkOnly, conn(12, { line: "34", category: "B", from: "Aarau, Bahnhof" })];
 
+// Let the card fetch its line colours once, so later renders have them.
+await (async () => {
+  const card = new Card();
+  card.setConfig({ entity: "sensor.c" });
+  card.hass = { language: "de", states: { "sensor.c": { attributes: { connections: [] } } } };
+  await new Promise((r) => setTimeout(r, 0));
+})();
+
+let html;
+
+// Line colours: RBS and BLS trains get their line colour from the table, other
+// operators keep the plain train badge.
+html = render({}, [conn(3, { operator: "RBS" })]);
+assert.ok(html.includes("background:#fa2d18"), "RBS S9 is red");
+html = render({}, [conn(3, { line: "S3", operator: "BLS-bls" })]); // the API calls BLS "BLS-bls"
+assert.ok(html.includes("background:#8868b3"), "BLS S3 is purple");
+html = render({}, [conn(3, { line: "S52", operator: "BLS-bls" })]);
+assert.ok(html.includes("background:#f7cf39;color:#000000"), "white label on yellow turns black");
+// The product text can carry a space ("S 9"); a bus "9" ahead of the train does not claim it.
+{
+  const c = conn(3, { operator: "RBS" });
+  c.products = ["S 9"];
+  c.legs.unshift({ line: "9", category: "B", number: "9", operator: "BLT", from_name: "Aarau", to_name: "x" });
+  assert.ok(render({}, [c]).includes("background:#fa2d18"), "train badge keeps the RBS colour");
+}
+// Existing bus/tram tables keep their text colour (VBZ 6 is light with white text).
+html = render({}, [conn(3, { line: "6", category: "T", operator: "VBZ" })]);
+assert.ok(!html.includes("color:#000000"), "existing tables are not flipped");
+// line_label number: a bus "9" after the train never takes the train colour.
+{
+  const c = conn(3, { operator: "RBS" });
+  c.products = ["9"];
+  c.legs[0].line = "9";
+  c.legs.push({ line: "9", category: "B", number: "9", operator: "BLT", from_name: "x", to_name: "y" });
+  assert.ok(!render({}, [c]).includes("background:#fa2d18"), "numeric label matches no train by itself");
+}
+html = render({}, [conn(3, { operator: "SBB" })]);
+assert.ok(!html.includes("background:#fa2d18"), "an operator without a table keeps the plain badge");
+html = render({ style: "classic" }, [conn(3, { operator: "RBS" })]);
+assert.ok(!html.includes("background:#fa2d18"), "classic style stays uncoloured");
+
+// Station board: same colours for trains.
+{
+  const Board = defined["swiss-transport-card"];
+  const card = new Board();
+  card.setConfig({ entity: "sensor.b", show_clock: false });
+  const dep = (op) => ({
+    line: "S9", category: "S", number: "9", operator: op, to: "Bern",
+    departure: new Date(NOW + 180000).toISOString().replace("Z", "+0000"),
+    departure_ts: Math.floor((NOW + 180000) / 1000), delay: 0, platform: "1",
+  });
+  card.hass = { language: "de", states: { "sensor.b": { attributes: { station_name: "Aarau", departures: [dep("RBS")], departure_count: 1 } } } };
+  assert.ok(card.shadowRoot.innerHTML.includes("background:#fa2d18"), "board: RBS S9 is red");
+  // line_label "category" leaves only "S" as the label; the colour still follows category + number.
+  const only = { ...dep("RBS"), line: "S" };
+  card.hass = { language: "de", states: { "sensor.b": { attributes: { station_name: "Aarau", departures: [only], departure_count: 1 } } } };
+  assert.ok(card.shadowRoot.innerHTML.includes("background:#fa2d18"), "board: label S still finds S9");
+}
+
 // Defaults: every connection with a first leg is listed, no extras.
-let html = render({}, list);
+html = render({}, list);
 assert.equal(rows(html), 5);
 assert.ok(!html.includes('class="stale"') && !html.includes('class="grp"'));
 
