@@ -1,7 +1,8 @@
 name: Tests
 
 # Runs the unit and config-flow tests against the Home Assistant test
-# harness for custom integrations (pytest-homeassistant-custom-component).
+# harness for custom integrations (pytest-homeassistant-custom-component),
+# and the card test of tests/frontend with the Node.js of the runner.
 
 on:
   push:
@@ -25,3 +26,6 @@ jobs:
 
       - name: Run the tests
         run: python -m pytest -q
+
+      - name: Run the card test
+        run: node tests/frontend/connection-card.test.mjs
