@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.13.0 — 2026-11-19
+
+- **A rejected real-time token asks for a new one.** When opentransportdata.swiss no longer accepts the token (HTTP 401/403), Home Assistant shows a reauthentication for the integration. Enter the new token once and every station board uses it; an empty field removes the token. The boards keep running without real-time data in the meantime, as before. Until now the rejection was only visible in the log and in the Configure dialog.
+- **`PARALLEL_UPDATES` declared** on the sensor, select and datetime platforms. No change in behaviour.
+- The Home Assistant Marketplace lists the integration under *Vehicles & transport → Public transport*. The repository is marked as made for Switzerland.
+
 ## 1.12.0 — 2026-11-12
 
 - **A compact board from the connection card, Bern S-Bahn colours and a choice of line names**, contributed by @sbaerlocher (#5) — the five entries that follow.

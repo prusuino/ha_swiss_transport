@@ -302,6 +302,8 @@ The current OJP 2.0 plan allows 20 000 calls/day and 50 calls/minute — far mor
 
 Paste the token into the **Real-time token** field when adding a station, or later via the station's **Configure** dialog. Entered once, it enriches **every** station board. Leave it empty to use transport.opendata.ch only.
 
+If opentransportdata.swiss rejects the token later (expired, revoked or replaced in the API Manager), Home Assistant shows **Reauthentication required** for the integration. The station boards keep running without real-time data in the meantime. Enter the new token there once and it applies to every board again; an empty field removes the token.
+
 > Note: the token is a credential — treat it like a password. It is stored in Home Assistant like any other integration secret and never leaves your instance except in requests to opentransportdata.swiss.
 
 ## Language

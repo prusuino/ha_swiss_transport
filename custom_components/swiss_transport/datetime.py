@@ -20,6 +20,10 @@ from .controls import controls_device_info
 from .localization import t
 
 
+# A local control without any I/O: no limit needed.
+PARALLEL_UPDATES = 0
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:

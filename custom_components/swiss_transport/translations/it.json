@@ -44,11 +44,22 @@
           "to_id": "A",
           "limit": "Numero di collegamenti"
         }
+      },
+      "reauth_confirm": {
+        "title": "Token in tempo reale rifiutato",
+        "description": "opentransportdata.swiss non accetta più il token in tempo reale (HTTP 401/403). I tabelloni delle partenze continuano senza dati in tempo reale. Inserisci un nuovo token dall'API Manager o lascia il campo vuoto per rimuovere il token.",
+        "data": {
+          "ojp_token": "Token in tempo reale"
+        },
+        "data_description": {
+          "ojp_token": "Il TOKEN della tua app nell'API Manager di opentransportdata.swiss, non il Token Hash. Vale per tutti i tabelloni delle partenze."
+        }
       }
     },
     "abort": {
       "already_configured": "Questa fermata o questo collegamento è già configurato.",
-      "reconfigure_successful": "La voce è stata aggiornata e l'integrazione ricaricata."
+      "reconfigure_successful": "La voce è stata aggiornata e l'integrazione ricaricata.",
+      "reauth_successful": "Il token in tempo reale è stato aggiornato."
     },
     "error": {
       "cannot_connect": "Impossibile raggiungere transport.opendata.ch o opentransportdata.swiss.",

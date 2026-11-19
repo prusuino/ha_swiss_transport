@@ -35,10 +35,10 @@ rules:
   entity-unavailable: done
   integration-owner: done
   log-when-unavailable: done
-  parallel-updates: todo
+  parallel-updates: done
   reauthentication-flow:
-    status: todo
-    comment: A rejected OJP token is reported in the options form; a reauth flow is not implemented yet.
+    status: done
+    comment: A rejected OJP token opens a reauthentication; the boards keep running without real-time data meanwhile.
   test-coverage: todo
 
   # Gold

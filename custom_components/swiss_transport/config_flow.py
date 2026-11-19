@@ -7,6 +7,7 @@ types shown.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
@@ -96,6 +97,16 @@ def _effective_token(hass) -> str:
     return ""
 
 
+def _probe_station_id(hass, entry: ConfigEntry) -> str:
+    """A station to test the token against: the entry's own, or that of any
+    station board when the entry is a saved connection."""
+    for candidate in (entry, *hass.config_entries.async_entries(DOMAIN)):
+        station_id = candidate.data.get(CONF_STATION_ID)
+        if station_id:
+            return station_id
+    return "8507000"  # Bern
+
+
 async def _async_check_ojp_token(hass, token: str, station_id: str) -> dict[str, str]:
     """Probe opentransportdata.swiss with the token before it is stored, so a
     bad token is reported in the form instead of failing silently later.
@@ -174,6 +185,37 @@ class SwissTransportConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_CONNECTION:
             return await self.async_step_connection()
         return await self.async_step_station()
+
+    # ------------------------------------------------------- reauthentication
+
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> FlowResult:
+        """opentransportdata.swiss rejected the real-time token."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Ask for a new token. An empty field removes the token, and the
+        boards go on without real-time data."""
+        entry = self._get_reauth_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            token = (user_input.get(CONF_OJP_TOKEN) or "").strip()
+            if token:
+                errors = await _async_check_ojp_token(self.hass, token, _probe_station_id(self.hass, entry))
+            if not errors:
+                # The token is integration-wide: every other entry gets it,
+                # and their update listeners refresh the boards.
+                _apply_token_everywhere(self.hass, token, current_entry_id=entry.entry_id)
+                options = dict(entry.options)
+                if token:
+                    options[CONF_OJP_TOKEN] = token
+                else:
+                    options.pop(CONF_OJP_TOKEN, None)
+                self.hass.config_entries.async_update_entry(entry, options=options)
+                return self.async_abort(reason="reauth_successful")
+
+        # Never pre-filled: the stored token is the one that was rejected.
+        schema = vol.Schema({vol.Optional(CONF_OJP_TOKEN, default=""): _token_selector()})
+        return self.async_show_form(step_id="reauth_confirm", data_schema=schema, errors=errors)
 
     def _default(self, key: str, fallback: Any) -> Any:
         """A form default: the entry's current value while reconfiguring."""

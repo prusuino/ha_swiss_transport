@@ -38,6 +38,10 @@ ATTRIBUTION_STATION = (
 ATTRIBUTION_OJP = "Real-time: opentransportdata.swiss (OJP)"
 
 
+# The coordinator fetches the data; entities never call the API themselves.
+PARALLEL_UPDATES = 0
+
+
 def _suggested_entity_id(entry: ConfigEntry, *names: str) -> str:
     """Object id suggested for a new entity: the stop name(s) plus a short tag
     from the config entry, so two stops whose names slugify identically (the

@@ -530,6 +530,21 @@ async def async_fetch_connections(
     }
 
 
+_REAUTH_ASKED = f"{DOMAIN}_token_reauth_asked"
+
+
+def _async_start_token_reauth(hass: HomeAssistant, entry: ConfigEntry, token: str) -> None:
+    """Ask for a new OJP token in the UI. The token is integration-wide, so
+    one reauthentication per rejected token is enough: a second station board
+    that sees the same rejection does not open another one. The marker is set
+    here and not read from the open flows, because a flow that is still
+    starting is not listed yet."""
+    if hass.data.get(_REAUTH_ASKED) == token:
+        return
+    hass.data[_REAUTH_ASKED] = token
+    entry.async_start_reauth(hass)
+
+
 def _resolve_ojp_token(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
     """The optional OJP real-time token. Read from this entry first, then from
     any sibling entry that has one — so it need only be entered once and then
@@ -626,12 +641,20 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
                         err.status,
                     )
                     self._ojp_auth_failed = True
+                    # The board itself keeps working, so the entry is not
+                    # failed; only the token is asked for again.
+                    _async_start_token_reauth(self.hass, self._entry, token)
             except Exception:  # noqa: BLE001 - enrichment must never break the board
                 _LOGGER.debug("OJP real-time enrichment failed", exc_info=True)
             else:
                 if self._ojp_auth_failed:
                     _LOGGER.info("opentransportdata.swiss accepts the OJP real-time token again")
                     self._ojp_auth_failed = False
+                # Accepted: should it be rejected later, ask again.
+                self.hass.data.pop(_REAUTH_ASKED, None)
+        else:
+            # Token removed: a token entered later starts with a clean slate.
+            self._ojp_auth_failed = False
 
         # Resolve the station address once (best-effort). Retried on later
         # polls only until it succeeds, so a transient geocoder hiccup isn't

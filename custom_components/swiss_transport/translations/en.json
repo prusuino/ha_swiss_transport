@@ -44,11 +44,22 @@
           "to_id": "To",
           "limit": "Number of connections"
         }
+      },
+      "reauth_confirm": {
+        "title": "Real-time token rejected",
+        "description": "opentransportdata.swiss no longer accepts the real-time token (HTTP 401/403). The station boards keep working without real-time data. Enter a new token from the API Manager, or leave the field empty to remove the token.",
+        "data": {
+          "ojp_token": "Real-time token"
+        },
+        "data_description": {
+          "ojp_token": "The TOKEN of your app in the API Manager of opentransportdata.swiss, not the Token Hash. It applies to every station board."
+        }
       }
     },
     "abort": {
       "already_configured": "This station or connection is already configured.",
-      "reconfigure_successful": "The entry was updated and the integration reloaded."
+      "reconfigure_successful": "The entry was updated and the integration reloaded.",
+      "reauth_successful": "The real-time token was updated."
     },
     "error": {
       "cannot_connect": "transport.opendata.ch or opentransportdata.swiss could not be reached.",

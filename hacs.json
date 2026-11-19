@@ -1,5 +1,6 @@
 {
   "name": "Swiss Transport",
+  "country": "CH",
   "zip_release": true,
   "filename": "swiss_transport.zip",
   "render_readme": true,

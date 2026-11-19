@@ -131,3 +131,51 @@ async def test_reconfigure_moves_the_board_to_another_stop(hass: HomeAssistant, 
     assert entry.unique_id == "station_8507000"
     assert entry.data[CONF_STATION_NAME] == "Bern"
     assert entry.options[CONF_LIMIT] == 8  # the options stay
+
+
+def _board_with_token(hass: HomeAssistant, station_id: str = "8505000", token: str = "old-token") -> MockConfigEntry:
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=f"station_{station_id}", title="Board",
+        data={CONF_ENTRY_TYPE: ENTRY_TYPE_STATION, CONF_STATION_ID: station_id, CONF_STATION_NAME: "Board", CONF_LIMIT: 5},
+        options={CONF_LIMIT: 8, "ojp_token": token},
+    )
+    entry.add_to_hass(hass)
+    return entry
+
+
+async def test_reauth_stores_the_new_token_on_every_entry(hass: HomeAssistant, enable_custom_integrations) -> None:
+    entry = _board_with_token(hass)
+    other = _board_with_token(hass, "8507000")
+    result = await entry.start_reauth_flow(hass)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reauth_confirm"
+    with patch("custom_components.swiss_transport.config_flow.async_validate_ojp_token") as probe:
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {"ojp_token": " new-token "})
+    assert probe.call_args.args[1:] == ("new-token", "8505000")
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert entry.options["ojp_token"] == "new-token"
+    assert other.options["ojp_token"] == "new-token"
+    assert entry.options[CONF_LIMIT] == 8  # the other options stay
+
+
+async def test_reauth_with_a_rejected_token_asks_again(hass: HomeAssistant, enable_custom_integrations) -> None:
+    entry = _board_with_token(hass)
+    result = await entry.start_reauth_flow(hass)
+    with patch("custom_components.swiss_transport.config_flow.async_validate_ojp_token", side_effect=OjpAuthError(403)):
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {"ojp_token": "still-bad"})
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "invalid_auth"}
+    assert entry.options["ojp_token"] == "old-token"
+
+
+async def test_reauth_with_an_empty_field_removes_the_token(hass: HomeAssistant, enable_custom_integrations) -> None:
+    entry = _board_with_token(hass)
+    other = _board_with_token(hass, "8507000")
+    result = await entry.start_reauth_flow(hass)
+    with patch("custom_components.swiss_transport.config_flow.async_validate_ojp_token") as probe:
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {"ojp_token": ""})
+    probe.assert_not_called()
+    assert result["reason"] == "reauth_successful"
+    assert "ojp_token" not in entry.options
+    assert "ojp_token" not in other.options

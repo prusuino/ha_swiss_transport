@@ -44,11 +44,22 @@
           "to_id": "Nach",
           "limit": "Anzahl Verbindungen"
         }
+      },
+      "reauth_confirm": {
+        "title": "Echtzeit-Token abgelehnt",
+        "description": "opentransportdata.swiss nimmt den Echtzeit-Token nicht mehr an (HTTP 401/403). Die Abfahrtstafeln laufen ohne Echtzeitdaten weiter. Trage einen neuen Token aus dem API Manager ein oder lass das Feld leer, um den Token zu entfernen.",
+        "data": {
+          "ojp_token": "Echtzeit-Token"
+        },
+        "data_description": {
+          "ojp_token": "Der TOKEN deiner App im API Manager von opentransportdata.swiss, nicht der Token Hash. Er gilt für alle Abfahrtstafeln."
+        }
       }
     },
     "abort": {
       "already_configured": "Diese Haltestelle oder Verbindung ist bereits konfiguriert.",
-      "reconfigure_successful": "Der Eintrag wurde aktualisiert und die Integration neu geladen."
+      "reconfigure_successful": "Der Eintrag wurde aktualisiert und die Integration neu geladen.",
+      "reauth_successful": "Der Echtzeit-Token wurde aktualisiert."
     },
     "error": {
       "cannot_connect": "transport.opendata.ch oder opentransportdata.swiss konnte nicht erreicht werden.",

@@ -1,6 +1,7 @@
 {
   "domain": "swiss_transport",
   "name": "Swiss Transport",
+  "categories": ["vehicles_transport.public_transport"],
   "codeowners": [
     "@prusuino"
   ],
@@ -14,5 +15,5 @@
   "issue_tracker": "https://github.com/prusuino/ha_swiss_transport/issues",
   "quality_scale": "bronze",
   "requirements": [],
-  "version": "1.12.0"
+  "version": "1.13.0"
 }

@@ -44,11 +44,22 @@
           "to_id": "À",
           "limit": "Nombre de liaisons"
         }
+      },
+      "reauth_confirm": {
+        "title": "Jeton temps réel refusé",
+        "description": "opentransportdata.swiss n'accepte plus le jeton temps réel (HTTP 401/403). Les tableaux des départs continuent sans données en temps réel. Saisissez un nouveau jeton de l'API Manager ou laissez le champ vide pour supprimer le jeton.",
+        "data": {
+          "ojp_token": "Jeton temps réel"
+        },
+        "data_description": {
+          "ojp_token": "Le TOKEN de votre application dans l'API Manager d'opentransportdata.swiss, pas le Token Hash. Il s'applique à tous les tableaux des départs."
+        }
       }
     },
     "abort": {
       "already_configured": "Cet arrêt ou cette liaison est déjà configuré.",
-      "reconfigure_successful": "L'entrée a été mise à jour et l'intégration rechargée."
+      "reconfigure_successful": "L'entrée a été mise à jour et l'intégration rechargée.",
+      "reauth_successful": "Le jeton temps réel a été mis à jour."
     },
     "error": {
       "cannot_connect": "transport.opendata.ch ou opentransportdata.swiss n'a pas pu être atteint.",
