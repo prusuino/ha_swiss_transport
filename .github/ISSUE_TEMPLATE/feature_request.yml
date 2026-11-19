@@ -1,0 +1,16 @@
+name: Feature request
+description: An idea or something that is missing
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What would you like to do?
+      description: The situation at your place, not only the feature. An example helps.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: How do you solve it today?
+      description: A template, an automation, another integration, or not at all.

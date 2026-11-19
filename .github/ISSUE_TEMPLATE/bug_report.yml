@@ -1,0 +1,49 @@
+name: Bug report
+description: Something does not work as described
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The versions and the diagnostics file usually save a round of questions.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version of Swiss Transport
+      description: Settings → Devices & services → Swiss Transport, or the Marketplace / HACS entry.
+      placeholder: "1.13.0"
+    validations:
+      required: true
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version
+      description: Settings → About.
+      placeholder: "2026.11.2"
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Settings → Devices & services → Swiss Transport → ⋮ → Download diagnostics. Drag the file in here. Tokens and coordinates are redacted in it.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log lines
+      description: Settings → System → Logs, search for `swiss_transport`. Leave empty if there are none.
+      render: text
+  - type: checkboxes
+    id: private
+    attributes:
+      label: Before you send
+      options:
+        - label: I removed what I do not want to be public (address, coordinates, tokens).
+          required: true
