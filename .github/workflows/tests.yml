@@ -1,8 +1,9 @@
 name: Tests
 
-# Runs the unit and config-flow tests against the Home Assistant test
-# harness for custom integrations (pytest-homeassistant-custom-component),
-# and the card test of tests/frontend with the Node.js of the runner.
+# Runs the tests against the Home Assistant test harness for custom
+# integrations (pytest-homeassistant-custom-component) and fails when
+# they cover less than 95 % of the integration.
+# Also runs the card test of tests/frontend with the Node.js of the runner.
 
 on:
   push:
@@ -25,7 +26,7 @@ jobs:
         run: python -m pip install --upgrade pip pytest-homeassistant-custom-component
 
       - name: Run the tests
-        run: python -m pytest -q
+        run: python -m pytest -q --cov=custom_components/swiss_transport --cov-branch --cov-report=term-missing:skip-covered --cov-fail-under=95
 
       - name: Run the card test
         run: node tests/frontend/connection-card.test.mjs

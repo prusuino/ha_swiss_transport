@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Tests.** The tests now cover more than 95 % of the code, and the test workflow fails below that. Nothing changes in how the integration works.
+
 ## 1.13.0 — 2026-11-19
 
 - **A rejected real-time token asks for a new one.** When opentransportdata.swiss no longer accepts the token (HTTP 401/403), Home Assistant shows a reauthentication for the integration. Enter the new token once and every station board uses it; an empty field removes the token. The boards keep running without real-time data in the meantime, as before. Until now the rejection was only visible in the log and in the Configure dialog.

@@ -19,7 +19,9 @@ rules:
   docs-removal-instructions: done
   entity-event-setup: done
   entity-unique-id: done
-  has-entity-name: done
+  has-entity-name:
+    status: todo
+    comment: The entities still set has_entity_name to False and carry their full name; changing it renames entities for existing users, so it waits for a release of its own.
   runtime-data:
     status: done
     comment: The entry's coordinator is entry.runtime_data.
@@ -39,7 +41,9 @@ rules:
   reauthentication-flow:
     status: done
     comment: A rejected OJP token opens a reauthentication; the boards keep running without real-time data meanwhile.
-  test-coverage: todo
+  test-coverage:
+    status: done
+    comment: Above 95 % of statements and branches; the test workflow fails below that.
 
   # Gold
   devices: done
