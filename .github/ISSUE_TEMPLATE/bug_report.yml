@@ -18,7 +18,7 @@ body:
     attributes:
       label: Version of Swiss Transport
       description: Settings → Devices & services → Swiss Transport, or the Marketplace / HACS entry.
-      placeholder: "1.13.0"
+      placeholder: "1.14.0"
     validations:
       required: true
   - type: input
