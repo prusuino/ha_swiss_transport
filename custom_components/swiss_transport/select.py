@@ -43,7 +43,7 @@ async def async_setup_entry(
 class SwissTransportModeSelect(RestoreEntity, SelectEntity):
     """Whether cards show the live board or the timetable for the chosen time."""
 
-    _attr_has_entity_name = False
+    _attr_has_entity_name = True
     _attr_icon = "mdi:clock-time-four-outline"
     _attr_should_poll = False
     _attr_options = MODES

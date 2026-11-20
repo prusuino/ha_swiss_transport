@@ -2,7 +2,7 @@ name: Tests
 
 # Runs the tests against the Home Assistant test harness for custom
 # integrations (pytest-homeassistant-custom-component) and fails when
-# they cover less than 95 % of the integration.
+# they cover less than 95 % of the integration (quality scale, Silver).
 # Also runs the card test of tests/frontend with the Node.js of the runner.
 
 on:

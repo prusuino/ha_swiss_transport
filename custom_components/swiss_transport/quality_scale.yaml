@@ -19,9 +19,7 @@ rules:
   docs-removal-instructions: done
   entity-event-setup: done
   entity-unique-id: done
-  has-entity-name:
-    status: todo
-    comment: The entities still set has_entity_name to False and carry their full name; changing it renames entities for existing users, so it waits for a release of its own.
+  has-entity-name: done
   runtime-data:
     status: done
     comment: The entry's coordinator is entry.runtime_data.

@@ -8,7 +8,7 @@
 [![Validate](https://github.com/prusuino/ha_swiss_transport/actions/workflows/validate.yml/badge.svg)](https://github.com/prusuino/ha_swiss_transport/actions/workflows/validate.yml)
 [![Tests](https://github.com/prusuino/ha_swiss_transport/actions/workflows/tests.yml/badge.svg)](https://github.com/prusuino/ha_swiss_transport/actions/workflows/tests.yml)
 [![Home Assistant](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fprusuino%2Fha_swiss_transport%2Fmain%2Fhacs.json&query=%24.homeassistant&label=Home%20Assistant&suffix=%2B&color=41BDF5)](https://www.home-assistant.io/)
-[![Quality scale](https://img.shields.io/badge/Quality%20Scale-Bronze-cd7f32.svg)](https://developers.home-assistant.io/docs/core/integration-quality-scale/)
+[![Quality scale](https://img.shields.io/badge/Quality%20Scale-Silver-c0c0c0.svg)](https://developers.home-assistant.io/docs/core/integration-quality-scale/)
 <a href="https://www.buymeacoffee.com/prusuino"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="20"></a>
 
 A Home Assistant custom integration for Swiss public transport, sourced from the free public **transport.opendata.ch** timetable API (backed by search.ch, no account required). Two things it does:
@@ -345,7 +345,7 @@ The integration is listed in the Marketplace default catalog (formerly the HACS 
 
 ## Quality scale
 
-The integration declares **Bronze** on the [Home Assistant integration quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/): a config flow with tests, unique ids for every entity, brand images, installation and removal instructions, a connection check before an entry is created, no duplicate entries, runtime data on the config entry, and the other Bronze rules. The tier is self-assessed, as it is for every custom integration; the per-rule status, including what is still open for Silver and Gold, is in `custom_components/swiss_transport/quality_scale.yaml`.
+The integration declares **Silver** on the [Home Assistant integration quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/). Bronze: a config flow with tests, unique ids for every entity, brand images, installation and removal instructions, a connection check before an entry is created, no duplicate entries, runtime data on the config entry. Silver on top of it: the entities turn unavailable when the timetable cannot be read and that is logged once, entries unload cleanly, a rejected token asks for a new one instead of failing silently, the actions raise an error when they cannot do what was asked, every setup and Configure parameter is documented, parallel updates are declared, and the tests cover more than 95 % of the code (the test workflow fails below that). The tier is self-assessed, as it is for every custom integration; the per-rule status, including what is still open for Gold, is in `custom_components/swiss_transport/quality_scale.yaml`.
 
 ## Notes
 

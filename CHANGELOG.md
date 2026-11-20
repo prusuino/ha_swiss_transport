@@ -2,7 +2,9 @@
 
 ## Unreleased
 
+- **Entity names follow the Home Assistant convention** (`has_entity_name`): an entity carries its own short name and Home Assistant puts the device name in front. Current Home Assistant versions already showed the names that way, so nothing changes there; the entity ids stay as they are. On an older Home Assistant the device name now appears in front of the entity name, and a name you gave an entity yourself is kept.
 - **Tests.** The tests now cover more than 95 % of the code, and the test workflow fails below that. Nothing changes in how the integration works.
+- **Quality scale: Silver.** With the two points above the integration meets the Silver rules.
 
 ## 1.13.0 — 2026-11-19
 

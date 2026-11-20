@@ -77,7 +77,7 @@ def _line_label(entry: ConfigEntry) -> str:
 class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator], SensorEntity):
     """Next departure at a station; the full board is in the attributes."""
 
-    _attr_has_entity_name = False
+    _attr_has_entity_name = True
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:train"
 
@@ -141,7 +141,7 @@ class SwissConnectionSensor(CoordinatorEntity[SwissConnectionCoordinator], Senso
     """Next connection for a saved from -> to route; the full list is in the
     attributes and rendered by the connection card."""
 
-    _attr_has_entity_name = False
+    _attr_has_entity_name = True
     _attr_attribution = ATTRIBUTION
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:transit-connection-variant"

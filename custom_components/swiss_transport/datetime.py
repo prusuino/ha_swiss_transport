@@ -38,7 +38,7 @@ async def async_setup_entry(
 class SwissTransportTime(RestoreEntity, DateTimeEntity):
     """The dashboard-wide selected moment."""
 
-    _attr_has_entity_name = False
+    _attr_has_entity_name = True
     _attr_icon = "mdi:clock-edit-outline"
     _attr_should_poll = False
 
