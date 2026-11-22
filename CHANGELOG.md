@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.15.1 — 2026-11-22
 
 - **The lists are no longer written to the database.** The attributes `departures`, `alerts` and `connections` change with nearly every refresh, and the recorder stored a full copy each time — for a busy station that is a few megabytes a day that nobody reads. They are now left out of the recorder. Nothing changes for cards, templates, triggers, conditions and actions: they read the live state, which still carries the lists. The state itself (time of the next departure) and the small attributes are recorded as before. Reported by @izacus (#6).
 
