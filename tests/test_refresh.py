@@ -484,3 +484,21 @@ async def test_board_without_a_filter_carries_the_direction(hass: HomeAssistant,
     assert [(row["direction_id"], row["direction"]) for row in rows[:3]] == [("6|H", "H"), ("6|R", "R"), ("33|H", "H")]
     assert hass.states.get(BOARD_ENTITY).attributes["direction_filter"] == []
 
+
+async def test_realtime_times_to_the_second_still_match(hass: HomeAssistant, api: FakeApi) -> None:
+    """Tram and bus lines have scheduled times to the second in the
+    real-time answer (07:03:24) while the board has the minute: the same
+    departure, so delay and direction are taken over."""
+    api.board = board([departure(3, "T", "6", "Zürich, Zoo", platform=None, delay=None)])
+    api.ojp = ojp_xml([ojp_event(3.4, "Zoo", estimated=5.4, line="6", direction="R")])
+    entry = await setup(hass, add_board(hass, options={CONF_OJP_TOKEN: "made-up-token"}))
+    (row,) = hass.states.get(BOARD_ENTITY).attributes["departures"]
+    assert (row["delay"], row["direction_id"]) == (2, "6|R")
+
+    # due at :54 and on time: no delay, although the board's minute is :00
+    api.ojp = ojp_xml([ojp_event(3.9, "Zoo", estimated=3.9, line="6", direction="R")])
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    (row,) = hass.states.get(BOARD_ENTITY).attributes["departures"]
+    assert row["delay"] == 0
+

@@ -246,6 +246,11 @@ _OCCUPANCY_LEVEL = {
 }
 
 
+def _minute(ts: int) -> int:
+    """A unix time cut to the full minute."""
+    return ts - ts % 60
+
+
 def _ojp_iso_to_ts(value) -> int | None:
     """OJP time ('2026-07-19T21:32:00Z') -> unix seconds."""
     try:
@@ -289,8 +294,10 @@ def _parse_ojp_stationboard(xml_text: str) -> dict:
 
     Each event carries the fresher real-time facts we overlay onto the
     opendata.ch board: estimated time, cancellation, platform change and
-    occupancy. Matching is done on the scheduled (timetabled) departure
-    time, which is identical in both sources."""
+    occupancy. Matching is done on the minute of the scheduled (timetabled)
+    departure: opendata.ch gives it to the minute, the OJP answer to the
+    second for many tram and bus lines (07:42:24), so the keys are the
+    scheduled times cut to the minute (`_minute`)."""
     root = ET.fromstring(xml_text)
 
     # Station-wide disruption texts, de-duplicated. The human-readable summary
@@ -326,9 +333,10 @@ def _parse_ojp_stationboard(xml_text: str) -> dict:
             if mapped is not None:
                 occupancy = max(occupancy or 0, mapped)
 
-        events.setdefault(planned, []).append(
+        events.setdefault(_minute(planned), []).append(
             {
                 "destination": (_txt(r, ".//o:DestinationText/o:Text") or "").strip(),
+                "planned_ts": planned,
                 "direction_id": _direction_id(
                     _txt(r, ".//o:Service/o:PublishedServiceName/o:Text"), _txt(r, ".//o:Service/s:DirectionRef")
                 ),
@@ -439,7 +447,7 @@ def _apply_ojp(board: dict, ojp: dict) -> None:
     """Overlay OJP real-time facts onto the opendata.ch board in place."""
     events = ojp.get("events") or {}
     for dep in board.get("departures", []):
-        matches = events.get(dep["departure_ts"])
+        matches = events.get(_minute(dep["departure_ts"]))
         if not matches:
             continue
         # Disambiguate several departures at the same minute by destination.
@@ -463,7 +471,10 @@ def _apply_ojp(board: dict, ojp: dict) -> None:
             dep["occupancy"] = match["occupancy"]
         # Fresher, second-accurate delay from the estimated time.
         if match.get("estimated_ts"):
-            dep["delay"] = max(0, round((match["estimated_ts"] - dep["departure_ts"]) / 60))
+            # against the real-time source's own scheduled time: measured
+            # against the board's minute, a tram due at :54 and on time
+            # would read as a minute late
+            dep["delay"] = max(0, round((match["estimated_ts"] - match["planned_ts"]) / 60))
         # Platform change from the effective quay.
         eq = (match.get("estimated_quay") or "").strip()
         pq = (match.get("planned_quay") or dep.get("platform") or "").strip()

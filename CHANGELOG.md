@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.16.1 — 2026-11-22
+
+- **Real-time data now reaches every tram and bus departure.** The real-time source gives the scheduled time of many tram and bus journeys to the second (07:42:24), the timetable board to the minute. The two were matched on the exact time, so such a departure found no match and got no second-accurate delay, no cancellation or platform change from the real-time source, and no direction; at one Zürich stop this was 28 of 60 departures. They are now matched on the minute. The delay is measured against the real-time source's own scheduled time, so a tram due at :54 and on time does not read as a minute late.
+- **The direction filter of 1.16.0 places more departures** for the same reason: fewer rows of a ticked line stay on the board with an unknown direction.
+
 ## 1.16.0 — 2026-11-22
 
 - **A board for one direction only.** At a tram or bus stop the two directions leave from the two sides of the street; a station board can now be limited to the lines and directions you take. With a real-time token the **Configure** dialog of a station lists what leaves from the stop (`6 → Bahnhofplatz/HB`, `6 → Zoo`), you tick yours, and the board, the sensor and the cards show only those. The direction comes from the real-time source for every journey, so a tram that turns short at another destination stays on the board. At large stops the entry also names the Haltekante the direction leaves from. Needs a token; without one the board shows the whole stop as before. Suggested by @benkoechlin ([#7](https://github.com/prusuino/ha_swiss_transport/issues/7)).
