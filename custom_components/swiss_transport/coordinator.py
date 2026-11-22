@@ -1,15 +1,13 @@
 """DataUpdateCoordinator for the Swiss Transport departure board.
 
 Fetches the stationboard (upcoming departures) for one station from the
-public opendata.ch transport API. No authentication required.
+public transport.opendata.ch API. No authentication required.
 """
 from __future__ import annotations
 
 import logging
-import time
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -126,6 +124,18 @@ def _line_label(category: str, number: str, mode: str = DEFAULT_LINE_LABEL) -> s
     return f"{category}{number}"
 
 
+def _capacity_level(entry: dict) -> int | None:
+    """Expected occupancy of a journey on the 1 (low) .. 3 (high) scale the
+    card renders: the fuller of the two classes, as the API forecasts it in
+    `capacity1st` / `capacity2nd`. None when it has no forecast."""
+    levels = [
+        level
+        for level in (entry.get("capacity1st"), entry.get("capacity2nd"))
+        if isinstance(level, int) and not isinstance(level, bool) and 1 <= level <= 3
+    ]
+    return max(levels) if levels else None
+
+
 def _parse_departure(entry: dict, line_label: str = DEFAULT_LINE_LABEL) -> dict | None:
     """Flatten one stationboard entry into a compact departure dict."""
     stop = entry.get("stop") or {}
@@ -137,7 +147,7 @@ def _parse_departure(entry: dict, line_label: str = DEFAULT_LINE_LABEL) -> dict 
     line = _line_label(category, number, line_label) or "?"
 
     delay = stop.get("delay")
-    return {
+    dep = {
         "line": line,
         "category": category,
         "number": number,
@@ -152,19 +162,14 @@ def _parse_departure(entry: dict, line_label: str = DEFAULT_LINE_LABEL) -> dict 
             (stop.get("prognosis") or {}).get("platform")
             and (stop.get("prognosis") or {}).get("platform") != stop.get("platform")
         ),
+        # The board is asked for with showCancelled=1: a journey that does not
+        # run, or passes this stop without calling, stays on it and is marked.
+        "cancelled": entry.get("cancelled") is True,
     }
-
-
-# transport.opendata.ch reads the `datetime` query parameter as Swiss local time.
-_SWISS_TZ = ZoneInfo("Europe/Zurich")
-# Since the DST change on 2026-10-25 the /stationboard endpoint has been
-# serving the board one hour late: with the bug the first departure is always
-# at least an hour away, so a board whose first row is this far ahead is
-# re-requested one hour earlier and departures already gone are dropped. On a
-# correct answer the earlier window only yields the same rows again, so the
-# fallback is harmless once the API behaves (/connections is not affected).
-BOARD_SHIFT_SUSPECT_SECONDS = 45 * 60
-BOARD_SHIFT_LOOKBACK = timedelta(hours=1)
+    occupancy = _capacity_level(entry)
+    if occupancy is not None:
+        dep["occupancy"] = occupancy
+    return dep
 
 
 def _parse_board(data: dict, line_label: str = DEFAULT_LINE_LABEL) -> list[dict]:
@@ -199,33 +204,14 @@ async def async_fetch_stationboard(
 ) -> dict:
     """Fetch the stationboard for one station."""
     session = async_get_clientsession(hass)
-    params = {"id": station_id, "limit": str(limit)}
+    # showCancelled keeps cancelled journeys on the board, each row then
+    # carries `cancelled`; without it they are silently left out.
+    params = {"id": station_id, "limit": str(limit), "showCancelled": "1"}
     if transportations:
         # The API accepts the parameter repeated once per type.
         params["transportations"] = transportations
     data = await _async_get_board(session, params)
     departures = _parse_board(data, line_label)
-
-    now = time.time()
-    if departures and departures[0]["departure_ts"] - now > BOARD_SHIFT_SUSPECT_SECONDS:
-        earlier = dict(params, limit=str(limit * 2))
-        earlier["datetime"] = (datetime.now(_SWISS_TZ) - BOARD_SHIFT_LOOKBACK).strftime(
-            "%Y-%m-%d %H:%M"
-        )
-        try:
-            again = await _async_get_board(session, earlier)
-        except Exception:  # noqa: BLE001 - keep the first answer rather than fail the refresh
-            _LOGGER.debug("Second stationboard request (one hour earlier) failed", exc_info=True)
-        else:
-            fresh = [d for d in _parse_board(again, line_label) if d["departure_ts"] >= now - 60]
-            if fresh:
-                _LOGGER.debug(
-                    "Stationboard %s started %d min ahead; using the one-hour-earlier window",
-                    station_id,
-                    (departures[0]["departure_ts"] - now) // 60,
-                )
-                data = again
-                departures = fresh[:limit]
 
     station = data.get("station") or {}
     coord = station.get("coordinate") or {}
@@ -326,9 +312,13 @@ def _parse_ojp_stationboard(xml_text: str) -> dict:
         estimated_quay = _txt(r, ".//o:EstimatedQuay/o:Text")
         cancelled = (_txt(r, ".//o:Cancelled") or "").lower() == "true"
 
+        # OJP 2.0 takes the occupancy elements from SIRI; an answer that
+        # writes them in the OJP namespace is read as well.
         occupancy = None
-        for occ in r.findall(".//o:ExpectedDepartureOccupancy", _OJP_NS):
-            level = (_txt(occ, "o:OccupancyLevel") or "").strip().lower()
+        for occ in r.findall(".//s:ExpectedDepartureOccupancy", _OJP_NS) + r.findall(
+            ".//o:ExpectedDepartureOccupancy", _OJP_NS
+        ):
+            level = (_txt(occ, "s:OccupancyLevel") or _txt(occ, "o:OccupancyLevel") or "").strip().lower()
             mapped = _OCCUPANCY_LEVEL.get(level.replace(" ", ""))
             if mapped is not None:
                 occupancy = max(occupancy or 0, mapped)
@@ -410,7 +400,8 @@ def _apply_ojp(board: dict, ojp: dict) -> None:
                     break
             match = match or matches[0]
 
-        dep["cancelled"] = match["cancelled"]
+        # Cancelled when either source says so.
+        dep["cancelled"] = bool(dep.get("cancelled")) or match["cancelled"]
         if match.get("occupancy"):
             dep["occupancy"] = match["occupancy"]
         # Fresher, second-accurate delay from the estimated time.
@@ -564,10 +555,10 @@ def _apply_rate_limit_backoff(
 ) -> None:
     """Slow the poll right down after an HTTP 429.
 
-    transport.opendata.ch enforces daily quotas (1000 /connections calls,
-    10080 /stationboard calls). Once a quota is exhausted every further poll
-    is a wasted request, so back off; the coordinator restores its normal
-    cadence with the next successful update.
+    transport.opendata.ch has no fixed limit per client but throttles one
+    that asks too often. While it does, every further poll is a wasted
+    request, so back off; the coordinator restores its normal cadence with
+    the next successful update.
     """
     if getattr(err, "status", None) != 429:
         coordinator.update_interval = timedelta(seconds=normal_seconds)
@@ -575,8 +566,8 @@ def _apply_rate_limit_backoff(
     backoff = timedelta(seconds=RATE_LIMIT_BACKOFF_SECONDS)
     if coordinator.update_interval != backoff:
         _LOGGER.warning(
-            "transport.opendata.ch rate limit hit (HTTP 429) — daily quota "
-            "exhausted, pausing polling for %d minutes",
+            "transport.opendata.ch rate limit hit (HTTP 429) — pausing polling "
+            "for %d minutes",
             RATE_LIMIT_BACKOFF_SECONDS // 60,
         )
     coordinator.update_interval = backoff

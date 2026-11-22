@@ -1,6 +1,6 @@
 """The actions with response data, `get_departures` and `get_connections`:
 stops by name or id, the returned records, and the errors for an unknown
-stop, an unreachable API and an exhausted quota."""
+stop, an unreachable API and one that throttles."""
 from __future__ import annotations
 
 from datetime import datetime

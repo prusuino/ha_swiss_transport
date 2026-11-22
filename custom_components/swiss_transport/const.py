@@ -3,20 +3,21 @@ from pathlib import Path
 """Constants for the Swiss Transport integration."""
 DOMAIN = "swiss_transport"
 
-# Public timetable API of opendata.ch (backed by search.ch). No key required.
+# Public timetable API of opendata.ch. Since October 2026 it answers from its
+# own copy of the national timetable and real-time feed of
+# opentransportdata.swiss. No key required.
 API_BASE = "https://transport.opendata.ch/v1"
 
-# The source enforces a rate limit; poll conservatively. A departure board
-# is still useful at this cadence because it shows the next several
-# departures, not just one.
+# The API is shared by thousands of applications and has no fixed limit per
+# client, but throttles one that asks too often; poll conservatively. A
+# departure board is still useful at this cadence because it shows the next
+# several departures, not just one, and the real-time feed behind it is
+# renewed every 30 seconds.
 UPDATE_INTERVAL_SECONDS = 90
-# /connections is quota-limited to 1000 requests per day by
-# transport.opendata.ch — a 90 s poll (960 calls/day) exhausts that with a
-# single saved route. 300 s keeps even three routes comfortably below the
-# quota (288 calls/day each). /stationboard allows 10080/day, so departure
-# boards keep the fast 90 s cadence.
+# A connection search is the costlier request and its answer changes less
+# from minute to minute, so saved routes are asked for less often.
 CONNECTION_UPDATE_INTERVAL_SECONDS = 300
-# Once the API answers HTTP 429 the daily quota is exhausted — every further
+# Once the API answers HTTP 429 it is throttling this client — every further
 # poll is a wasted request. Back off this long, then probe again.
 RATE_LIMIT_BACKOFF_SECONDS = 1800
 # /connections answered in up to 36.5 s in measurements; 30 s cut those off.
@@ -50,9 +51,9 @@ CONF_LINE_LABEL = "line_label"
 
 # Optional real-time enrichment via the official opentransportdata.swiss
 # Open Journey Planner (OJP 2.0) API. When a token is configured, the station
-# board is enriched with fresher delays, cancellations, platform changes,
-# disruption messages and occupancy. Without a token everything works as
-# before, sourced purely from opendata.ch.
+# board is enriched with second-accurate delays, platform changes and
+# disruption messages. Delays, cancellations and occupancy come from
+# transport.opendata.ch without a token.
 CONF_OJP_TOKEN = "ojp_token"
 OJP_ENDPOINT = "https://api.opentransportdata.swiss/ojp20"
 OJP_REQUESTOR_REF = "HA-Swiss-Transport"

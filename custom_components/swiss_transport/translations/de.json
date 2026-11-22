@@ -132,7 +132,7 @@
         },
         "limit": {
           "name": "Anzahl",
-          "description": "Wie viele Verbindungen zurückgegeben werden (jeder Aufruf zählt zum Tageskontingent der API von 1000 Verbindungsabfragen)."
+          "description": "Wie viele Verbindungen zurückgegeben werden."
         }
       }
     }
@@ -163,7 +163,7 @@
       "message": "Der Fahrplandienst ist nicht erreichbar."
     },
     "rate_limited": {
-      "message": "Der Fahrplandienst nimmt zurzeit keine weiteren Anfragen an (Tageskontingent erreicht oder zu viele Anfragen)."
+      "message": "Der Fahrplandienst nimmt zurzeit keine weiteren Anfragen an (zu viele Anfragen)."
     }
   },
   "triggers": {

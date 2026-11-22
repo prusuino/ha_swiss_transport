@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+transport.opendata.ch was rebuilt in October 2026: it no longer passes requests on to search.ch but answers from its own copy of the national timetable and real-time feed of opentransportdata.swiss. The integration works with it unchanged; this version uses what the new service adds and drops what only the old one needed.
+
+- **Cancelled journeys without a token.** A journey that does not run, or passes the stop without calling, stays on the departure board, struck through and marked, also when you browse the timetable for another time. Until now it silently disappeared from the board unless the optional real-time token was set. Every row of `departures` now carries `cancelled` (true or false).
+- **Occupancy without a token.** Trains carry the expected occupancy (`occupancy`, 1 low to 3 high, the fuller of the two classes), and the cards show the occupancy column for them.
+- **Occupancy from the real-time token is read.** OJP 2.0 writes the occupancy as SIRI elements, which the integration did not find; boards with a token showed no occupancy.
+- **The second request for a board that seemed to start an hour late is gone.** It worked around a fault of the old service on the day of the clock change (version 1.4.1). With the new service it only cost a second request whenever the next departure was more than 45 minutes away.
+- **Attribution** names the source as it is now: `Data: transport.opendata.ch (opentransportdata.swiss)`; the device manufacturer reads `transport.opendata.ch`.
+- **Texts no longer speak of a daily quota.** The service has no fixed limit per client any more and throttles one that asks too often; the pause of 30 minutes after an HTTP 429 stays.
+- A platform change, disruption messages and delays to the second still need the optional real-time token.
+
 ## 1.14.0 — 2026-11-20
 
 - **Entity names follow the Home Assistant convention** (`has_entity_name`): an entity carries its own short name and Home Assistant puts the device name in front. Current Home Assistant versions already showed the names that way, so nothing changes there; the entity ids stay as they are. On an older Home Assistant the device name now appears in front of the entity name, and a name you gave an entity yourself is kept.

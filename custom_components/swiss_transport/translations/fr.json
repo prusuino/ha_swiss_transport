@@ -132,7 +132,7 @@
         },
         "limit": {
           "name": "Nombre",
-          "description": "Nombre de liaisons à renvoyer (chaque appel compte dans le quota journalier de l'API de 1000 requêtes de liaisons)."
+          "description": "Nombre de liaisons à renvoyer."
         }
       }
     }
@@ -163,7 +163,7 @@
       "message": "Le service d'horaires est injoignable."
     },
     "rate_limited": {
-      "message": "Le service d'horaires refuse d'autres requêtes pour le moment (quota journalier atteint ou trop de requêtes)."
+      "message": "Le service d'horaires refuse d'autres requêtes pour le moment (trop de requêtes)."
     }
   },
   "triggers": {

@@ -11,11 +11,11 @@
 [![Quality scale](https://img.shields.io/badge/Quality%20Scale-Silver-c0c0c0.svg)](https://developers.home-assistant.io/docs/core/integration-quality-scale/)
 <a href="https://www.buymeacoffee.com/prusuino"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="20"></a>
 
-A Home Assistant custom integration for Swiss public transport, sourced from the free public **transport.opendata.ch** timetable API (backed by search.ch, no account required). Two things it does:
+A Home Assistant custom integration for Swiss public transport, sourced from the free public **transport.opendata.ch** timetable API (no account required; it answers from the national timetable and real-time feed of opentransportdata.swiss). Two things it does:
 
 - **Departure boards** — the live Abfahrtstafel of any station (train, tram, bus, ship, cableway).
 - **Connections** — a saved route (from → to), e.g. your daily commute, showing the next departures with times, platforms, duration and transfers.
-- **Optional real-time** — plug in a free [opentransportdata.swiss](#real-time-optional) token for fresher delays, cancellations, platform changes, disruption messages and occupancy.
+- **Optional real-time** — delays, cancellations and occupancy are on the board without an account; plug in a free [opentransportdata.swiss](#real-time-optional) token for delays to the second, platform changes and disruption messages.
 
 Both come with a bundled Lovelace card styled like a station departure board, plus a dashboard strategy that assembles a complete departures dashboard for you.
 
@@ -26,11 +26,11 @@ Both come with a bundled Lovelace card styled like a station departure board, pl
 - **Any stop in Switzerland**: departure boards for train, tram, bus, ship and cableway, and saved connections from A to B — from transport.opendata.ch, no account needed.
 - **Four dashboard cards**: a board card that recognizes the sensor type, a departure board laid out like a station display, a connection card and a controls card — two looks, the real operator colours of bus and tram lines, all with a visual editor.
 - **Browse the timetable**: switch every board from live to any date and time, or to an arrivals board.
-- **Real time if you want it**: with a free opentransportdata.swiss token, delays to the second, cancellations, platform changes, disruption messages and occupancy.
+- **Delays, cancellations and occupancy without an account**: a cancelled train stays on the board, struck through and marked. With a free opentransportdata.swiss token on top: delays to the second, platform changes and disruption messages.
 - **Built for the automation editor**: triggers and conditions for a delayed next departure and a reported disruption, and a blueprint that reminds you before the next departure — no templates needed.
 - **Two actions for everything else**: `swiss_transport.get_departures` and `swiss_transport.get_connections` answer for any stop, configured or not — made for scripts and Assist.
 - **A dashboard without building one**: the bundled strategy lays out your boards and connections by itself.
-- **Polls sparingly**: boards about every 90 seconds, connections every 5 minutes, within the quotas of the API.
+- **Polls sparingly**: boards about every 90 seconds, connections every 5 minutes, to go easy on the free API.
 - **Set up in a minute**: type part of a station name and pick the stop; German, English, French and Italian; diagnostics download with coordinates and token redacted.
 
 ## What it provides
@@ -41,7 +41,7 @@ When you add the integration you first choose a **mode** — a departure board o
 
 | Entity | Type | Description |
 |---|---|---|
-| `sensor.swiss_transport_<station>_<tag>` | Sensor | State = the next departure (timestamp). Attributes: `departures` (the full upcoming board — line, category, destination, platform, delay, operator, departure time, plus `cancelled`/`occupancy` when real-time is enabled), `departure_count`, station name, **address** (reverse-geocoded), coordinates, `line_label` (how train lines are named, see the options), `realtime` (bool) and `alerts` (disruption messages, real-time only). |
+| `sensor.swiss_transport_<station>_<tag>` | Sensor | State = the next departure (timestamp). Attributes: `departures` (the full upcoming board — line, category, destination, platform, delay, operator, departure time, `cancelled`, and `occupancy` when the source forecasts it), `departure_count`, station name, **address** (reverse-geocoded), coordinates, `line_label` (how train lines are named, see the options), `realtime` (bool) and `alerts` (disruption messages, real-time only). |
 
 ### Connection (from → to)
 
@@ -51,7 +51,7 @@ When you add the integration you first choose a **mode** — a departure board o
 
 `<station>`, `<from>` and `<to>` are the stop names as the timetable API returns them, slugified; `<tag>` is a short discriminator — the last four characters of the config entry id, lower-cased — that keeps two stops whose names slugify to the same text apart (say the railway station "Zürich HB" and a tram stop "Zürich, HB"). The board of Zürich HB is thus something like `sensor.swiss_transport_zurich_hb_k7q2`, the connection Bern → Zürich HB `sensor.swiss_transport_bern_zurich_hb_m3xz`. The integration suggests these object ids when an entity is first created, so they do not depend on your Home Assistant language — only the entity's displayed name ("Departures" / "Abfahrten") is localized. Entities created by versions before 1.4.0 keep the ids they have (without the tag). Like any entity, they can be renamed in the entity settings afterwards.
 
-Station boards refresh about every 90 seconds. Saved connections refresh every 5 minutes — the transport.opendata.ch API allows only 1000 connection queries per day, and the slower cadence keeps several saved routes comfortably within that quota. If the API ever answers with "too many requests" (HTTP 429), the affected entry pauses for 30 minutes and then resumes automatically.
+Station boards refresh about every 90 seconds. Saved connections refresh every 5 minutes — a connection search is the costlier request for the free transport.opendata.ch API, and its answer changes less from minute to minute. If the API ever answers with "too many requests" (HTTP 429), the affected entry pauses for 30 minutes and then resumes automatically.
 
 ## Bundled Lovelace cards
 
@@ -74,7 +74,7 @@ style: sbb            # optional, "sbb" (SBB pictograms, operator line colours) 
 rows: 8               # optional, max departures shown; unset = the count configured in the integration
 show_clock: true      # optional, show the date/time bar
 show_type: true       # optional, show the "Departures" label
-show_occupancy: true  # optional, show the occupancy column (real-time only)
+show_occupancy: true  # optional, show the occupancy column
 show_alerts: true     # optional, show the disruption banner (real-time only)
 max_alerts: 3         # optional, disruptions shown before "+N more" (0 = all)
 datetime_entity: datetime.swiss_transport_time  # optional, follow timetable browsing
@@ -207,7 +207,7 @@ script:
             {% endfor %}
 ```
 
-Each connection lookup counts against the API's daily quota of 1000 connection requests, shared with the saved-connection sensors; departure lookups have a far larger quota (10 080 a day). When the quota is exhausted the action raises an error instead of returning stale data.
+Every lookup is a request to the free API, which throttles a client that asks too often. While it does, the action raises an error instead of returning stale data.
 
 ## Automations
 
@@ -273,17 +273,15 @@ What the cards show:
 - **Arrival mode** — station boards flip to an **arrivals board**: the label changes to "Ankünfte"/"Arrivals" and the direction column changes from *Nach/To* to *Von/From*, showing where each service comes from. Connection cards interpret the selected time as the **latest arrival**.
 - **Live** — back to the normal live board.
 
-Timetable data is fetched by your browser directly from transport.opendata.ch. In timetable mode boards show the planned schedule only — real-time delays, cancellations and disruption messages apply to the live view.
+Timetable data is fetched by your browser directly from transport.opendata.ch. In timetable mode boards show what transport.opendata.ch knows for that time, including cancellations; the disruption messages and the other additions of the optional real-time token apply to the live view.
 
 ## Real-time (optional)
 
-By default all data — including delays — comes from transport.opendata.ch, which reports delays but not reliably cancellations. You can **optionally** enrich station boards with the official **Open Journey Planner (OJP 2.0)** real-time feed from [opentransportdata.swiss](https://opentransportdata.swiss/), which adds:
+By default all data comes from transport.opendata.ch: delays to the minute, cancellations (struck through and marked on the board) and, for trains, the expected occupancy. You can **optionally** enrich station boards with the official **Open Journey Planner (OJP 2.0)** real-time feed from [opentransportdata.swiss](https://opentransportdata.swiss/), which adds:
 
-- **fresher, second-accurate delays**,
-- **cancellations** (struck-through and marked on the board),
-- **platform changes**,
-- **disruption messages** (shown as a banner), and
-- **occupancy** forecasts (shown as a column when available).
+- **second-accurate delays**,
+- **platform changes**, and
+- **disruption messages** (shown as a banner).
 
 This is completely optional. Without a token nothing changes and everything keeps working from transport.opendata.ch.
 
@@ -351,14 +349,13 @@ The integration declares **Silver** on the [Home Assistant integration quality s
 
 - **Repairs.** When transport.opendata.ch has not answered for three refreshes in a row (including a rate limit), a notice appears under **Settings → Repairs**; it disappears on its own with the next successful refresh.
 - Only relevant for stops within Switzerland (and directly connected cross-border stations covered by the Swiss timetable).
-- transport.opendata.ch is a free community service with daily rate limits (1000 connection queries, 10080 station board queries per day) — the integration polls conservatively (station boards ~90 s, saved connections ~5 min) and backs off automatically after an HTTP 429. Note that the cards' timetable-browsing mode queries the API directly from your browser and counts towards the same per-IP quota. Without the optional real-time source, delays depend on that feed's own reporting and cancellations are not shown.
-- Since the DST change on 2026-10-25 the `/stationboard` endpoint of transport.opendata.ch has been serving departure boards one hour late (connections are not affected; reported as [OpendataCH/Transport#224](https://github.com/OpendataCH/Transport/issues/224)). Version 1.4.1 works around this: when a board's first row is more than 45 minutes ahead, the integration and the card ask once more for the window one hour earlier and drop the rows that have already left. Once the API is correct again the extra request simply returns the same rows, so nothing changes for you.
-- Unofficial; not affiliated with Opendata.ch, search.ch, opentransportdata.swiss, OpenStreetMap, or any transport operator.
+- transport.opendata.ch is a free community service shared by thousands of applications. It has no fixed limit per client but throttles one that asks too often — the integration polls conservatively (station boards ~90 s, saved connections ~5 min) and backs off automatically after an HTTP 429. Note that the cards' timetable-browsing mode queries the API directly from your browser. A platform change is only shown with the optional real-time token.
+- Unofficial; not affiliated with Opendata.ch, opentransportdata.swiss, OpenStreetMap, or any transport operator.
 - **Download diagnostics** (entry menu under **Settings → Devices & services**) gives the entry's configuration, what the integration last fetched and the current state of its entities, with coordinates, credentials and the entry's title and unique id redacted. Entity ids and names stay readable and can contain a place or stop name, so look through the file before attaching it to a public issue.
 
 ## Data source & license
 
-Source code: MIT — see [LICENSE](LICENSE). Data sources and their required attribution — timetable & departures from transport.opendata.ch (search.ch), optional real-time from opentransportdata.swiss (OJP), and station addresses from OpenStreetMap contributors (ODbL) — are documented in [NOTICE.md](NOTICE.md). Every entity sets Home Assistant's `attribution` attribute to credit the sources actually used.
+Source code: MIT — see [LICENSE](LICENSE). Data sources and their required attribution — timetable & departures from transport.opendata.ch (which takes them from opentransportdata.swiss), optional real-time from opentransportdata.swiss (OJP), and station addresses from OpenStreetMap contributors (ODbL) — are documented in [NOTICE.md](NOTICE.md). Every entity sets Home Assistant's `attribution` attribute to credit the sources actually used.
 
 ## Disclaimer
 

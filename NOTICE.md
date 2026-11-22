@@ -4,14 +4,18 @@ This integration retrieves data at runtime from the following third-party
 services. It is unofficial and not affiliated with, endorsed by, or supported
 by any of them or by any transport operator.
 
-## 1. Timetable & departures — transport.opendata.ch (search.ch)
+## 1. Timetable & departures — transport.opendata.ch (opentransportdata.swiss)
 
 The station boards and connections come from the **transport.opendata.ch** API,
-a free service operated by [Opendata.ch](https://opendata.ch/) that is backed by
-the timetable of **search.ch**. The API requires no account or key. Please keep
-usage reasonable — it is a community service with rate limits.
+a free service operated by [Opendata.ch](https://opendata.ch/). Since October
+2026 it answers from its own copy of the national timetable and of the
+real-time feed published on
+[opentransportdata.swiss](https://opentransportdata.swiss/); until then it was
+backed by the timetable of search.ch. The API requires no account or key.
+Please keep usage reasonable — it is a community service that throttles
+clients asking too often.
 
-**Attribution:** *Data: transport.opendata.ch (search.ch)*
+**Attribution:** *Data: transport.opendata.ch (opentransportdata.swiss)*
 
 ## 2. Transport mode pictograms — SBB design system
 
@@ -34,8 +38,8 @@ regenerated with `scripts/generate_line_colors.py`.
 ## 4. Real-time data (optional) — opentransportdata.swiss (OJP 2.0)
 
 When you configure an API token, station boards are additionally enriched with
-real-time information (fresher delays, cancellations, platform changes,
-disruption messages and occupancy) from the **Open Journey Planner (OJP 2.0)**
+real-time information (second-accurate delays, platform changes and
+disruption messages) from the **Open Journey Planner (OJP 2.0)**
 API of [opentransportdata.swiss](https://opentransportdata.swiss/), the official
 Swiss open-transport-data platform operated by the *Systemaufgabe
 Kundeninformation (SKI)*. A free token is required and obtained by the user.

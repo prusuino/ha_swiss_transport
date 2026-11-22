@@ -132,7 +132,7 @@
         },
         "limit": {
           "name": "Numero",
-          "description": "Quanti collegamenti restituire (ogni chiamata conta nella quota giornaliera dell'API di 1000 richieste di collegamento)."
+          "description": "Quanti collegamenti restituire."
         }
       }
     }
@@ -163,7 +163,7 @@
       "message": "Il servizio orari non è raggiungibile."
     },
     "rate_limited": {
-      "message": "Il servizio orari al momento rifiuta altre richieste (quota giornaliera raggiunta o troppe richieste)."
+      "message": "Il servizio orari al momento rifiuta altre richieste (troppe richieste)."
     }
   },
   "triggers": {

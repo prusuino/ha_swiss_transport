@@ -74,8 +74,10 @@ def departure(
     delay: int | None = 0,
     platform: str | None = "7",
     new_platform: str | None = None,
+    cancelled: bool | None = None,
+    capacity: tuple[int | None, int | None] | None = None,
 ) -> dict[str, Any]:
-    """One row of a /stationboard answer."""
+    """One row of a /stationboard answer; `capacity` is (1st, 2nd class)."""
     stop: dict[str, Any] = {
         "departure": local_time(minutes),
         "departureTimestamp": ts(minutes),
@@ -84,7 +86,12 @@ def departure(
     }
     if new_platform:
         stop["prognosis"] = {"platform": new_platform}
-    return {"category": category, "number": number, "to": to, "operator": "SBB", "stop": stop}
+    row: dict[str, Any] = {"category": category, "number": number, "to": to, "operator": "SBB", "stop": stop}
+    if cancelled is not None:
+        row["cancelled"] = cancelled
+    if capacity is not None:
+        row["capacity1st"], row["capacity2nd"] = capacity
+    return row
 
 
 def board(rows: list[dict] | None = None, *, name: str | None = "Bern", coordinate: bool = True) -> dict[str, Any]:
@@ -190,15 +197,12 @@ class FakeApi:
 
     The attributes hold the next answers and can be changed at any time.
     `fail[route]` makes a route answer with an HTTP status (an int) or raise
-    (an exception); the routes are "board", "earlier_board", "connections",
-    "locations", "geocode" and "ojp"."""
+    (an exception); the routes are "board", "connections", "locations",
+    "geocode" and "ojp"."""
 
     def __init__(self, mocker: AiohttpClientMocker) -> None:
         self.mocker = mocker
         self.board: dict[str, Any] = board()
-        # Answer to the second stationboard request (one hour earlier); the
-        # same as the first one when None.
-        self.earlier_board: dict[str, Any] | None = None
         self.connections: dict[str, Any] = connections()
         self.stations: dict[str, list[dict]] = {"bern": [BERN], "thun": [THUN]}
         self.address: dict[str, Any] = ADDRESS
@@ -219,9 +223,6 @@ class FakeApi:
         return AiohttpClientMockResponse(method, url, **body)
 
     async def _board(self, method, url, data) -> AiohttpClientMockResponse:
-        if "datetime" in url.query:
-            earlier = self.earlier_board if self.earlier_board is not None else self.board
-            return self._answer("earlier_board", method, url, json=earlier)
         return self._answer("board", method, url, json=self.board)
 
     async def _connections(self, method, url, data) -> AiohttpClientMockResponse:

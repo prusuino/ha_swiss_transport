@@ -20,7 +20,7 @@ const NOW_WORD = { de: "jetzt", en: "now", fr: "maint.", it: "ora" };
 const CANCELLED_WORD = { de: "Ausfall", en: "Cancelled", fr: "Supprimé", it: "Soppresso" };
 const MORE_ALERTS = { de: "+{n} weitere", en: "+{n} more", fr: "+{n} de plus", it: "+{n} altre" };
 
-// Occupancy (from OJP): coarse 1 (low) .. 3 (high), shown as a small icon.
+// Occupancy: coarse 1 (low) .. 3 (high), shown as a small icon.
 const OCC_ICON = { 1: "mdi:account", 2: "mdi:account-multiple", 3: "mdi:account-group" };
 const OCC_COLOR = { 1: "#2e7d32", 2: "#f9a825", 3: "#c62828" };
 const LATE_FMT = {
@@ -321,6 +321,15 @@ function lineLabel(category, number, mode) {
   return `${category}${number}`;
 }
 
+/* Expected occupancy 1 (low) .. 3 (high): the fuller of the two classes, from
+ * the API's capacity1st / capacity2nd (mirrors the coordinator). */
+function capacityLevel(entry) {
+  const levels = [entry.capacity1st, entry.capacity2nd].filter(
+    (n) => Number.isInteger(n) && n >= 1 && n <= 3
+  );
+  return levels.length ? Math.max(...levels) : null;
+}
+
 /* Flatten one stationboard entry (mirrors the coordinator's _parse_departure).
  * The API keeps the board time in the departure fields for both departure and
  * arrival boards (arrival timestamps come back null), so we always read those;
@@ -332,7 +341,8 @@ function parseBoardEntry(entry, labelMode) {
   const category = (entry.category || "").trim();
   const number = (entry.number || "").trim();
   const line = lineLabel(category, number, labelMode) || "?";
-  return {
+  const newPlatform = (stop.prognosis || {}).platform;
+  const dep = {
     line,
     category,
     number,
@@ -342,8 +352,12 @@ function parseBoardEntry(entry, labelMode) {
     departure_ts: parseInt(ts, 10),
     delay: typeof stop.delay === "number" ? stop.delay : null,
     platform: stop.platform,
-    platform_changed: false,
+    platform_changed: !!newPlatform && newPlatform !== stop.platform,
+    cancelled: entry.cancelled === true,
   };
+  const occupancy = capacityLevel(entry);
+  if (occupancy !== null) dep.occupancy = occupancy;
+  return dep;
 }
 
 function durationToMinutes(value) {
@@ -405,8 +419,9 @@ function parseConnectionEntry(con, labelMode) {
   };
 }
 
-async function fetchBoardRaw(stationId, limit, datetime, arrival, labelMode) {
-  const p = new URLSearchParams({ id: stationId, limit: String(limit) });
+async function fetchBoard(stationId, limit, datetime, arrival, labelMode) {
+  // showCancelled keeps cancelled journeys on the board, marked as such.
+  const p = new URLSearchParams({ id: stationId, limit: String(limit), showCancelled: "1" });
   if (datetime) p.set("datetime", datetime);
   if (arrival) p.set("type", "arrival");
   const resp = await fetch(`${API_BASE}/stationboard?${p.toString()}`);
@@ -415,31 +430,6 @@ async function fetchBoardRaw(stationId, limit, datetime, arrival, labelMode) {
     .map((e) => parseBoardEntry(e, labelMode))
     .filter((x) => x)
     .sort((a, b) => a.departure_ts - b.departure_ts);
-}
-
-/* Since the DST change on 2026-10-25 /stationboard serves the board one hour
- * late (the first row is then always at least an hour after the asked time).
- * Mirrors the coordinator: when the first row is that far ahead, ask again one
- * hour earlier and drop rows before the asked time. Harmless once the API is
- * correct again - the earlier window then just repeats the same rows. */
-const BOARD_SHIFT_SUSPECT_S = 45 * 60;
-
-async function fetchBoard(stationId, limit, datetime, arrival, selectedTs, labelMode) {
-  const list = await fetchBoardRaw(stationId, limit, datetime, arrival, labelMode);
-  const ref = selectedTs || Math.floor(Date.now() / 1000);
-  if (list.length && list[0].departure_ts - ref > BOARD_SHIFT_SUSPECT_S) {
-    const earlier = fmtSelected(new Date((ref - 3600) * 1000));
-    if (earlier) {
-      try {
-        const again = (await fetchBoardRaw(stationId, limit * 2, earlier.datetime, arrival, labelMode))
-          .filter((d) => d.departure_ts >= ref - 60);
-        if (again.length) return again.slice(0, limit);
-      } catch (e) {
-        /* keep the first answer */
-      }
-    }
-  }
-  return list;
 }
 
 async function fetchConnections(fromId, toId, limit, date, time, isArrival, labelMode) {
@@ -555,7 +545,7 @@ class SwissTransportCard extends HTMLElement {
     const sig = `${stationId}|${sel.datetime}|${arrival}|${this._maxRows()}|${labelMode}`;
     if (sig === this._sig) return;
     this._sig = sig;
-    fetchBoard(stationId, this._maxRows(), sel.datetime, arrival, Math.floor(sel.dateObj.getTime() / 1000), labelMode)
+    fetchBoard(stationId, this._maxRows(), sel.datetime, arrival, labelMode)
       .then((list) => {
         if (this._sig === sig) {
           this._fetched = list;
@@ -637,8 +627,8 @@ class SwissTransportCard extends HTMLElement {
     // (bus/tram stops). The destination column flexes to fill the card, so
     // nothing overflows regardless.
     const anyPlatform = deps.some((d) => d.platform);
-    // Occupancy column only appears when the (optional) OJP real-time source
-    // actually supplied occupancy for at least one departure.
+    // Occupancy column only appears when the source forecasts the occupancy
+    // of at least one departure.
     const anyOcc =
       this._config.show_occupancy !== false &&
       deps.some((d) => Number.isFinite(d.occupancy) && d.occupancy > 0);

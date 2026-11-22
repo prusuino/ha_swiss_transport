@@ -1,6 +1,6 @@
 """What a refresh makes of the answers of the three services: the station
-address, broken rows, the board that arrives one hour late, the real-time
-overlay and its token, the rate-limit pause and the repair issue."""
+address, broken rows, cancelled journeys and occupancy, the real-time overlay
+and its token, the rate-limit pause and the repair issue."""
 from __future__ import annotations
 
 import logging
@@ -113,44 +113,39 @@ async def test_station_id_of_the_entry_is_kept_when_the_answer_names_none(hass: 
     assert _attrs(hass)["station_name"] is None
 
 
-async def test_board_starting_soon_is_requested_once(hass: HomeAssistant, api: FakeApi) -> None:
-    api.board = board([departure(44), departure(50)])
-    await setup(hass, add_board(hass))
-    assert len(api.requests(BOARD_URL)) == 1
-
-
-async def test_board_that_starts_an_hour_ahead_is_read_again_one_hour_earlier(hass: HomeAssistant, api: FakeApi) -> None:
+async def test_board_is_asked_for_once_with_cancelled_journeys(hass: HomeAssistant, api: FakeApi) -> None:
+    # A first departure far ahead (a small stop late at night) is no reason
+    # for a second request.
     api.board = board([departure(70), departure(80)])
-    api.earlier_board = board(
-        [departure(25, "IR", "16"), departure(-30), departure(5, "S", "9", "Thun"), departure(-0.5), departure(15)],
-        name="Bern (earlier window)",
+    await setup(hass, add_board(hass))
+    (request,) = api.requests(BOARD_URL)
+    assert request[1].query["showCancelled"] == "1"
+    assert "datetime" not in request[1].query
+    assert [dep["departure_ts"] for dep in _attrs(hass)["departures"]] == [ts(70), ts(80)]
+
+
+async def test_cancelled_journeys_and_occupancy_need_no_token(hass: HomeAssistant, api: FakeApi) -> None:
+    api.board = board(
+        [
+            departure(4, "S", "9", "Thun", cancelled=False, capacity=(1, 2)),
+            departure(12, "IC", "1", "Genève-Aéroport", cancelled=True, capacity=(3, 1)),
+            departure(20, "IR", "15", "Luzern", capacity=(None, None)),
+            departure(25, "RE", "1", "Biel/Bienne", cancelled=False, capacity=(0, 7)),
+            departure(30, "B", "10", "Köniz", platform=None),
+        ]
     )
-    await setup(hass, add_board(hass, options={CONF_LIMIT: 3}))
-
-    first, second = (request[1].query for request in api.requests(BOARD_URL))
-    assert "datetime" not in first
-    assert second["datetime"] == "2026-11-09 06:00"
-    assert second["limit"] == "6"
-    # The departure gone for half an hour is dropped, the one just leaving
-    # stays, and the board is cut back to the configured length.
-    assert [dep["departure_ts"] for dep in _attrs(hass)["departures"]] == [ts(-0.5), ts(5), ts(15)]
-    assert _attrs(hass)["station_name"] == "Bern (earlier window)"
-    assert hass.states.get(BOARD_ENTITY).state == state_time(-0.5)
-
-
-async def test_first_answer_is_kept_when_the_earlier_window_fails(hass: HomeAssistant, api: FakeApi) -> None:
-    api.board = board([departure(70), departure(80)])
-    api.fail["earlier_board"] = 500
     await setup(hass, add_board(hass))
-    assert len(api.requests(BOARD_URL)) == 2
-    assert [dep["departure_ts"] for dep in _attrs(hass)["departures"]] == [ts(70), ts(80)]
 
-
-async def test_first_answer_is_kept_when_the_earlier_window_holds_nothing_current(hass: HomeAssistant, api: FakeApi) -> None:
-    api.board = board([departure(70), departure(80)])
-    api.earlier_board = board([departure(-40), departure(-20)])
-    await setup(hass, add_board(hass))
-    assert [dep["departure_ts"] for dep in _attrs(hass)["departures"]] == [ts(70), ts(80)]
+    attrs = _attrs(hass)
+    assert attrs["realtime"] is False
+    assert api.requests(OJP_ENDPOINT) == []
+    thun, geneva, luzern, biel, bus = attrs["departures"]
+    assert (thun["cancelled"], thun["occupancy"]) == (False, 2)
+    assert (geneva["cancelled"], geneva["occupancy"]) == (True, 3)
+    # No forecast, a value outside the scale, a row without the fields.
+    assert luzern["cancelled"] is False and "occupancy" not in luzern
+    assert "occupancy" not in biel
+    assert bus["cancelled"] is False and "occupancy" not in bus
 
 
 # ---------------------------------------------------------------- real time
@@ -208,8 +203,34 @@ async def test_realtime_answer_is_laid_over_the_board(hass: HomeAssistant, api: 
     # No real-time row names this destination: the first one of the minute counts.
     assert geneva["cancelled"] is False
     # No real-time row at all: the timetable values stay.
-    assert "cancelled" not in luzern
+    assert luzern["cancelled"] is False
     assert luzern["delay"] == 2
+
+
+async def test_realtime_overlay_keeps_what_the_board_already_knows(hass: HomeAssistant, api: FakeApi) -> None:
+    api.board = board(
+        [
+            departure(4, "S", "9", "Thun", platform="3", cancelled=True, capacity=(1, 2)),
+            departure(12, "IC", "8", "Zürich HB", capacity=(1, 1)),
+        ]
+    )
+    siri_occupancy = (
+        "<siri:ExpectedDepartureOccupancy><siri:FareClass>secondClass</siri:FareClass>"
+        "<siri:OccupancyLevel>standingRoomOnly</siri:OccupancyLevel></siri:ExpectedDepartureOccupancy>"
+    )
+    api.ojp = ojp_xml(
+        [
+            ojp_event(4, "Thun"),
+            ojp_event(12, "Zürich HB").replace("</CallAtStop>", f"{siri_occupancy}</CallAtStop>"),
+        ]
+    )
+    await setup(hass, add_board(hass, options=TOKEN))
+
+    thun, zurich = _attrs(hass)["departures"]
+    # Cancelled on the board stays cancelled, its occupancy forecast stays too.
+    assert (thun["cancelled"], thun["occupancy"]) == (True, 2)
+    # The occupancy elements of OJP 2.0 are SIRI elements; they win over the board.
+    assert (zurich["cancelled"], zurich["occupancy"]) == (False, 3)
 
 
 async def test_token_entered_on_one_entry_serves_every_board(hass: HomeAssistant, api: FakeApi, freezer) -> None:
@@ -260,7 +281,7 @@ async def test_realtime_outage_leaves_the_timetable_board(hass: HomeAssistant, a
     await setup(hass, add_board(hass, options=TOKEN))
     assert hass.states.get(BOARD_ENTITY).state == state_time(4)
     assert _attrs(hass)["realtime"] is False
-    assert _attrs(hass)["attribution"] == "Data: transport.opendata.ch (search.ch). Address: © OpenStreetMap contributors"
+    assert _attrs(hass)["attribution"] == "Data: transport.opendata.ch (opentransportdata.swiss). Address: © OpenStreetMap contributors"
     assert _reauth_flows(hass) == []
     assert _warnings(caplog, "OJP") == 0
 

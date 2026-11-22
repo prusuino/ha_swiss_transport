@@ -132,7 +132,7 @@
         },
         "limit": {
           "name": "Number",
-          "description": "How many connections to return (each call counts against the API's daily quota of 1000 connection requests)."
+          "description": "How many connections to return."
         }
       }
     }
@@ -163,7 +163,7 @@
       "message": "The timetable service could not be reached."
     },
     "rate_limited": {
-      "message": "The timetable service is refusing further requests for now (daily quota reached or too many requests)."
+      "message": "The timetable service is refusing further requests for now (too many requests)."
     }
   },
   "triggers": {

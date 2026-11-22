@@ -45,7 +45,7 @@ async def test_board_sensor_shows_the_next_departure_and_the_whole_board(hass: H
     assert attrs["line_label"] == "category"
     assert attrs["realtime"] is False
     assert attrs["alerts"] == []
-    assert attrs["attribution"] == "Data: transport.opendata.ch (search.ch). Address: © OpenStreetMap contributors"
+    assert attrs["attribution"] == "Data: transport.opendata.ch (opentransportdata.swiss). Address: © OpenStreetMap contributors"
     first, second = attrs["departures"]
     assert first == {
         "line": "S",
@@ -58,6 +58,7 @@ async def test_board_sensor_shows_the_next_departure_and_the_whole_board(hass: H
         "delay": 2,
         "platform": "3",
         "platform_changed": True,
+        "cancelled": False,
     }
     assert second["line"] == "IR"
     assert second["platform_changed"] is False
@@ -94,7 +95,7 @@ async def test_board_sensor_and_device_are_registered_under_the_station(hass: Ho
     assert device.identifiers == {(DOMAIN, entry.entry_id)}
     assert device.name == "Bern"
     assert device.model == "Departure board"
-    assert device.manufacturer == "transport.opendata.ch (search.ch)"
+    assert device.manufacturer == "transport.opendata.ch"
     assert device.sw_version == VERSION
 
 
@@ -133,7 +134,7 @@ async def test_connection_sensor_shows_the_next_connection_and_the_list(hass: Ho
     attrs = state.attributes
     assert attrs["device_class"] == "timestamp"
     assert attrs["friendly_name"] == "Bern → Thun Connections"
-    assert attrs["attribution"] == "Data: transport.opendata.ch (search.ch)"
+    assert attrs["attribution"] == "Data: transport.opendata.ch (opentransportdata.swiss)"
     assert (attrs["from_name"], attrs["to_name"]) == ("Bern", "Thun")
     assert (attrs["from_id"], attrs["to_id"]) == (BERN["id"], THUN["id"])
     assert attrs["connection_count"] == 2

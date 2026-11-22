@@ -29,11 +29,11 @@ from .coordinator import SwissConnectionCoordinator, SwissTransportCoordinator
 from .device import connection_device_info, device_info
 from .localization import t
 
-ATTRIBUTION = "Data: transport.opendata.ch (search.ch)"
+ATTRIBUTION = "Data: transport.opendata.ch (opentransportdata.swiss)"
 # The station board additionally resolves the address via OpenStreetMap and,
 # when a token is configured, real-time data via opentransportdata.swiss.
 ATTRIBUTION_STATION = (
-    "Data: transport.opendata.ch (search.ch). Address: © OpenStreetMap contributors"
+    "Data: transport.opendata.ch (opentransportdata.swiss). Address: © OpenStreetMap contributors"
 )
 ATTRIBUTION_OJP = "Real-time: opentransportdata.swiss (OJP)"
 
@@ -127,7 +127,8 @@ class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator
             "limit": _configured_limit(self._entry),
             "line_label": _line_label(self._entry),
             # True when the board was enriched with opentransportdata.swiss
-            # OJP real-time data (fresher delays, cancellations, occupancy).
+            # OJP real-time data (second-accurate delays, platform changes,
+            # disruption messages).
             "realtime": bool(data.get("realtime")),
             # Active disruption messages for the station (OJP only).
             "alerts": data.get("alerts") or [],

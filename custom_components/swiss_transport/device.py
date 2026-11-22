@@ -14,7 +14,7 @@ def device_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInfo:
         identifiers={(DOMAIN, entry.entry_id)},
         sw_version=VERSION,
         name=name,
-        manufacturer="transport.opendata.ch (search.ch)",
+        manufacturer="transport.opendata.ch",
         model="Departure board",
         entry_type=None,
     )
@@ -27,7 +27,7 @@ def connection_device_info(hass: HomeAssistant, entry: ConfigEntry) -> DeviceInf
         identifiers={(DOMAIN, entry.entry_id)},
         sw_version=VERSION,
         name=f"{frm} → {to}",
-        manufacturer="transport.opendata.ch (search.ch)",
+        manufacturer="transport.opendata.ch",
         model="Connection",
         entry_type=None,
     )
