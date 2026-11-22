@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.16.2 — 2026-11-22
+
+- **The last row of a board gets its real-time data too.** The real-time source sometimes lists a journey the timetable board does not, so the same number of results ended a row earlier than the board, and the last departure had no second-accurate delay and no direction. Five more results are now asked for. The number of requests is unchanged.
+
 ## 1.16.1 — 2026-11-22
 
 - **Real-time data now reaches every tram and bus departure.** The real-time source gives the scheduled time of many tram and bus journeys to the second (07:42:24), the timetable board to the minute. The two were matched on the exact time, so such a departure found no match and got no second-accurate delay, no cancellation or platform change from the real-time source, and no direction; at one Zürich stop this was 28 of 60 departures. They are now matched on the minute. The delay is measured against the real-time source's own scheduled time, so a tram due at :54 and on time does not read as a minute late.

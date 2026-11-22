@@ -27,6 +27,7 @@ from .const import (
     DEFAULT_LIMIT,
     DIRECTION_FETCH_FACTOR,
     DIRECTION_FETCH_MAX,
+    OJP_EXTRA_RESULTS,
     DEFAULT_LINE_LABEL,
     DOMAIN,
     FETCH_TIMEOUT_SECONDS,
@@ -727,7 +728,7 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
         if token:
             try:
                 ojp = await async_fetch_ojp_stationboard(
-                    self.hass, token, data[CONF_STATION_ID], fetch_limit
+                    self.hass, token, data[CONF_STATION_ID], fetch_limit + OJP_EXTRA_RESULTS
                 )
                 _apply_ojp(result, ojp)
             except OjpAuthError as err:

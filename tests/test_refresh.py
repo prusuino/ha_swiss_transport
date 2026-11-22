@@ -186,7 +186,9 @@ async def test_realtime_answer_is_laid_over_the_board(hass: HomeAssistant, api: 
     assert headers["Content-Type"] == "application/xml"
     request = body.decode("utf-8")
     assert "<siri:StopPointRef>8507000</siri:StopPointRef>" in request
-    assert "<NumberOfResults>8</NumberOfResults>" in request
+    # a few more than the board shows: the real-time source sometimes lists a
+    # journey the board does not, and would otherwise end a row early
+    assert "<NumberOfResults>13</NumberOfResults>" in request
     assert "<siri:RequestTimestamp>2026-11-09T06:00:00Z</siri:RequestTimestamp>" in request
 
     attrs = _attrs(hass)
@@ -422,7 +424,7 @@ async def test_board_for_one_direction_only(hass: HomeAssistant, api: FakeApi) -
     assert attributes["direction_filter"] == ["6|H"] and attributes["departure_count"] == 3
     # more rows than shown are asked for, from both sources, since some are thrown away
     assert api.requests(BOARD_URL)[-1][1].query["limit"] == "12"
-    assert "<NumberOfResults>12</NumberOfResults>" in api.requests(OJP_ENDPOINT)[-1][2].decode("utf-8")
+    assert "<NumberOfResults>17</NumberOfResults>" in api.requests(OJP_ENDPOINT)[-1][2].decode("utf-8")
 
 
 async def test_filtered_board_is_cut_to_the_number_shown(hass: HomeAssistant, api: FakeApi) -> None:

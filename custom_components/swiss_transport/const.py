@@ -67,6 +67,11 @@ CONF_DIRECTIONS = "directions"
 # rows (the other directions are thrown away), up to DIRECTION_FETCH_MAX.
 DIRECTION_FETCH_FACTOR = 3
 DIRECTION_FETCH_MAX = 60
+# The real-time source sometimes lists a journey the timetable board does not
+# (two entries for a train that is split, an extra run), so the same number
+# of results ends a row or two earlier than the board. A few more are asked
+# for, so that the last rows of the board find their match too.
+OJP_EXTRA_RESULTS = 5
 OJP_ENDPOINT = "https://api.opentransportdata.swiss/ojp20"
 OJP_REQUESTOR_REF = "HA-Swiss-Transport"
 
