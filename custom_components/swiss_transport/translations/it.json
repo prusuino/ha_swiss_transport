@@ -86,11 +86,13 @@
           "limit": "Numero mostrato",
           "transportations": "Mezzi di trasporto (vuoto = tutti)",
           "ojp_token": "Token in tempo reale (facoltativo)",
-          "line_label": "Nome della linea"
+          "line_label": "Nome della linea",
+          "directions": "Solo queste linee e direzioni (vuoto = tutta la fermata)"
         },
         "data_description": {
           "ojp_token": "Token API OJP 2.0 facoltativo di opentransportdata.swiss per ritardi al secondo, cambi di binario e messaggi di perturbazione. Inserito una volta, arricchisce ogni tabellone. Lascia vuoto per usare solo opendata.ch.",
-          "line_label": "Nome delle linee ferroviarie: «S» tiene solo la categoria, «S9» categoria e numero, «9» solo il numero. Bus e tram mostrano sempre il numero."
+          "line_label": "Nome delle linee ferroviarie: «S» tiene solo la categoria, «S9» categoria e numero, «9» solo il numero. Bus e tram mostrano sempre il numero.",
+          "directions": "A una fermata di tram o bus le due direzioni partono dai due lati della strada. Seleziona le linee e le direzioni che prendi e il tabellone mostra solo quelle. La scelta elenca ciò che parte ora dalla fermata; richiede il token in tempo reale, da cui proviene la direzione, e compare alla prossima apertura di questa finestra dopo averne inserito uno. Una partenza di cui non si conosce ancora la direzione resta sul tabellone."
         }
       }
     },

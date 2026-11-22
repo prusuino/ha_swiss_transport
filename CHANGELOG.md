@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.16.0 — 2026-11-22
+
+- **A board for one direction only.** At a tram or bus stop the two directions leave from the two sides of the street; a station board can now be limited to the lines and directions you take. With a real-time token the **Configure** dialog of a station lists what leaves from the stop (`6 → Bahnhofplatz/HB`, `6 → Zoo`), you tick yours, and the board, the sensor and the cards show only those. The direction comes from the real-time source for every journey, so a tram that turns short at another destination stays on the board. At large stops the entry also names the Haltekante the direction leaves from. Needs a token; without one the board shows the whole stop as before. Suggested by @benkoechlin ([#7](https://github.com/prusuino/ha_swiss_transport/issues/7)).
+- **New attributes.** With a token, each departure carries `direction` (`H` outward, `R` return) and `direction_id` (`6|H`); the board sensor has `direction_filter`, the list the board is limited to (empty for the whole stop).
+
 ## 1.15.1 — 2026-11-22
 
 - **The lists are no longer written to the database.** The attributes `departures`, `alerts` and `connections` change with nearly every refresh, and the recorder stored a full copy each time — for a busy station that is a few megabytes a day that nobody reads. They are now left out of the recorder. Nothing changes for cards, templates, triggers, conditions and actions: they read the live state, which still carries the lists. The state itself (time of the next departure) and the small attributes are recorded as before. Reported by @izacus (#6).

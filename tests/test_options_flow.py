@@ -8,6 +8,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.swiss_transport.const import (
+    CONF_DIRECTIONS,
     CONF_ENTRY_TYPE,
     CONF_FROM_ID,
     CONF_LIMIT,
@@ -28,6 +29,8 @@ from .common import (
     FakeApi,
     add_board,
     add_connection,
+    ojp_event,
+    ojp_xml,
     setup,
 )
 
@@ -109,7 +112,9 @@ async def test_emptied_token_field_removes_the_token_everywhere(hass: HomeAssist
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert CONF_OJP_TOKEN not in entry.options
     assert CONF_OJP_TOKEN not in other.options
-    assert api.requests(OJP_ENDPOINT) == []
+    # one request when the dialog opened (the lines and directions to choose
+    # from), none to check a token that was taken out
+    assert len(api.requests(OJP_ENDPOINT)) == 1
 
 
 async def test_rejected_token_is_not_saved(hass: HomeAssistant, api: FakeApi) -> None:
@@ -163,3 +168,82 @@ async def test_entries_without_a_stored_limit_start_from_the_defaults(hass: Home
     assert _defaults(await _open(hass, board))[CONF_LIMIT] == 8
     assert _defaults(await _open(hass, board))["transportations"] == []
     assert _defaults(await _open(hass, route))[CONF_LIMIT] == 6
+
+
+# --- only some lines and directions --------------------------------------------
+
+TRAMS = ojp_xml(
+    [
+        ojp_event(3, "Bahnhofplatz/HB", line="6", direction="H"),
+        ojp_event(5, "Zoo", line="6", direction="R"),
+        ojp_event(9, "Langmauerstrasse", line="6", direction="H"),  # a short turn, same direction
+        ojp_event(13, "Bahnhofplatz/HB", line="6", direction="H"),
+        ojp_event(7, "Triemli", line="33", direction="H", planned_quay="C"),
+        ojp_event(8, "Somewhere"),  # no direction named: not offered
+    ]
+)
+
+
+def _choices(result) -> dict[str, str]:
+    """The lines and directions a form offers, id -> label."""
+    for key, selector in result["data_schema"].schema.items():
+        if str(key) == CONF_DIRECTIONS:
+            return {option["value"]: option["label"] for option in selector.config["options"]}
+    return {}
+
+
+async def test_lines_and_directions_are_offered_with_a_token(hass: HomeAssistant, api: FakeApi) -> None:
+    api.ojp = TRAMS
+    entry = add_board(hass, options={CONF_OJP_TOKEN: "made-up-token"})
+    result = await _open(hass, entry)
+    # by line, labelled with the destination most journeys of that direction have
+    # and, where the stop names its Haltekanten, with the one it leaves from
+    assert _choices(result) == {"6|H": "6 → Bahnhofplatz/HB", "6|R": "6 → Zoo", "33|H": "33 → Triemli · C"}
+    assert _defaults(result)[CONF_DIRECTIONS] == []
+    asked = api.requests(OJP_ENDPOINT)[-1][2].decode("utf-8")
+    assert "<NumberOfResults>60</NumberOfResults>" in asked
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_LIMIT: 8, "transportations": [], CONF_OJP_TOKEN: "made-up-token", CONF_LINE_LABEL: "category", CONF_DIRECTIONS: ["6|H", "33|H"]},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_DIRECTIONS] == ["6|H", "33|H"]
+
+
+async def test_chosen_directions_stay_in_the_choice(hass: HomeAssistant, api: FakeApi) -> None:
+    """A line that does not run right now, or a source that cannot be read:
+    what is chosen is still shown and can be unticked."""
+    api.ojp = TRAMS
+    entry = add_board(hass, options={CONF_OJP_TOKEN: "made-up-token", CONF_DIRECTIONS: ["6|H", "N4|R"]})
+    result = await _open(hass, entry)
+    assert _choices(result)["N4|R"] == "N4 (R)" and "6|R" in _choices(result)
+    assert _defaults(result)[CONF_DIRECTIONS] == ["6|H", "N4|R"]
+
+    api.fail["ojp"] = 503
+    result = await _open(hass, entry)
+    assert _choices(result) == {"6|H": "6 (H)", "N4|R": "N4 (R)"}
+
+    # emptied: the whole stop again
+    api.fail.clear()
+    result = await _open(hass, entry)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_LIMIT: 8, "transportations": [], CONF_OJP_TOKEN: "made-up-token", CONF_LINE_LABEL: "category", CONF_DIRECTIONS: []},
+    )
+    assert entry.options[CONF_DIRECTIONS] == []
+
+
+async def test_no_choice_of_directions_without_a_token(hass: HomeAssistant, api: FakeApi) -> None:
+    """The direction comes from the real-time source: without a token the
+    field is not shown, and what was chosen earlier is kept for later."""
+    api.ojp = TRAMS
+    entry = add_board(hass)
+    result = await _open(hass, entry)
+    assert _choices(result) == {} and api.requests(OJP_ENDPOINT) == []
+
+    # nothing to choose from and nothing chosen: no field either
+    api.ojp = ojp_xml()
+    with_token = add_board(hass, entry_id="board0002", station=THUN, options={CONF_OJP_TOKEN: "made-up-token"})
+    assert _choices(await _open(hass, with_token)) == {}
+

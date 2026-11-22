@@ -38,6 +38,7 @@ from .const import (
     CONF_FROM_NAME,
     CONF_LIMIT,
     CONF_LINE_LABEL,
+    CONF_DIRECTIONS,
     CONF_OJP_TOKEN,
     CONF_STATION_ID,
     CONF_STATION_NAME,
@@ -55,7 +56,7 @@ from .const import (
     MAX_LIMIT,
     TRANSPORT_TYPES,
 )
-from .coordinator import OjpAuthError, async_search_stations, async_validate_ojp_token
+from .coordinator import OjpAuthError, async_fetch_directions, async_search_stations, async_validate_ojp_token
 from .localization import t, transport_type_label
 
 CONF_QUERY = "query"
@@ -81,6 +82,36 @@ def _line_label_selector() -> SelectSelector:
             translation_key=CONF_LINE_LABEL,
         )
     )
+
+
+def _directions_selector(choices: dict[str, str]) -> SelectSelector:
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=[SelectOptionDict(value=key, label=label) for key, label in choices.items()],
+            multiple=True,
+            mode=SelectSelectorMode.LIST,
+            sort=False,
+        )
+    )
+
+
+async def _async_direction_choices(hass, token: str, station_id: str, chosen: list[str]) -> dict[str, str]:
+    """The lines and directions to choose from at a stop: what leaves there
+    now according to the real-time source, and whatever is chosen already
+    (a line that does not run at this hour must not drop out of the choice).
+    Empty without a token, and when the source cannot be read and nothing
+    is chosen."""
+    choices: dict[str, str] = {}
+    if token:
+        try:
+            choices = await async_fetch_directions(hass, token, station_id)
+        except Exception:  # noqa: BLE001 - the dialog opens without the choice rather than not at all
+            choices = {}
+    for key in chosen:
+        if key not in choices:
+            line, _, direction = key.partition("|")
+            choices[key] = f"{line} ({direction})"
+    return choices
 
 
 def _token_selector() -> TextSelector:
@@ -446,6 +477,8 @@ class SwissTransportOptionsFlow(OptionsFlow):
                     new[CONF_OJP_TOKEN] = token
                 else:
                     new.pop(CONF_OJP_TOKEN, None)
+                if CONF_DIRECTIONS in user_input:
+                    new[CONF_DIRECTIONS] = [str(key) for key in user_input.get(CONF_DIRECTIONS) or []]
                 if not errors:
                     # The token is integration-wide: sync it to every other
                     # entry (and clean it out of .data) so it can be managed
@@ -475,6 +508,14 @@ class SwissTransportOptionsFlow(OptionsFlow):
             fields[
                 vol.Optional(CONF_OJP_TOKEN, default=_effective_token(self.hass))
             ] = _token_selector()
+            # Only these lines and directions: offered once a token is there
+            # (the direction comes from the real-time source).
+            chosen = [str(key) for key in options.get(CONF_DIRECTIONS) or []]
+            choices = await _async_direction_choices(
+                self.hass, _effective_token(self.hass), data[CONF_STATION_ID], chosen
+            )
+            if choices:
+                fields[vol.Optional(CONF_DIRECTIONS, default=chosen)] = _directions_selector(choices)
         fields[
             vol.Optional(CONF_LINE_LABEL, default=options.get(CONF_LINE_LABEL, DEFAULT_LINE_LABEL))
         ] = _line_label_selector()

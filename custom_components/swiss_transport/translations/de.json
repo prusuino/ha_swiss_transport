@@ -86,11 +86,13 @@
           "limit": "Angezeigte Anzahl",
           "transportations": "Verkehrsmittel (leer = alle)",
           "ojp_token": "Echtzeit-Token (optional)",
-          "line_label": "Linienname"
+          "line_label": "Linienname",
+          "directions": "Nur diese Linien und Richtungen (leer = ganze Haltestelle)"
         },
         "data_description": {
           "ojp_token": "Optionaler OJP-2.0-Token von opentransportdata.swiss für sekundengenaue Verspätungen, Gleiswechsel und Störungsmeldungen. Einmal eingegeben, reichert er jede Abfahrtstafel an. Leer lassen = nur opendata.ch.",
-          "line_label": "Name der Zuglinien: „S“ zeigt nur die Kategorie, „S9“ Kategorie und Nummer, „9“ nur die Nummer. Bus und Tram zeigen immer die Nummer."
+          "line_label": "Name der Zuglinien: „S“ zeigt nur die Kategorie, „S9“ Kategorie und Nummer, „9“ nur die Nummer. Bus und Tram zeigen immer die Nummer.",
+          "directions": "An einer Tram- oder Bushaltestelle fahren die beiden Richtungen von den beiden Strassenseiten ab. Kreuze die Linien und Richtungen an, die du nimmst, und die Tafel zeigt nur diese. Die Auswahl listet auf, was jetzt an der Haltestelle abfährt; sie braucht das Echtzeit-Token, von dem die Richtung stammt, und erscheint beim nächsten Öffnen dieses Dialogs, nachdem du eines eingegeben hast. Eine Abfahrt, deren Richtung noch nicht bekannt ist, bleibt auf der Tafel."
         }
       }
     },

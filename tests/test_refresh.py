@@ -12,7 +12,7 @@ from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
-from custom_components.swiss_transport.const import CONF_LIMIT, DOMAIN, OJP_ENDPOINT
+from custom_components.swiss_transport.const import CONF_LIMIT, CONF_OJP_TOKEN, DOMAIN, OJP_ENDPOINT
 from custom_components.swiss_transport.coordinator import NOMINATIM_URL
 
 from .common import (
@@ -376,3 +376,111 @@ async def test_connection_route_raises_and_clears_its_repair_issue(hass: HomeAss
     api.fail.clear()
     await poll(hass, freezer, 301)
     assert issues.async_get_issue(DOMAIN, f"unreachable_{entry.entry_id}") is None
+
+
+# --- only some lines and directions --------------------------------------------
+
+
+def _tram_board() -> dict:
+    return board(
+        [
+            departure(3, "T", "6", "Zürich, Bahnhofplatz/HB", platform=None),
+            departure(5, "T", "6", "Zürich, Zoo", platform=None),
+            departure(7, "B", "33", "Zürich, Triemli", platform=None),
+            departure(9, "T", "6", "Zürich, Langmauerstrasse", platform=None),
+            departure(11, "T", "6", "Zürich, Zoo", platform=None),
+            departure(13, "T", "6", "Zürich, Bahnhofplatz/HB", platform=None),
+        ]
+    )
+
+
+def _tram_ojp(*, without: tuple[int, ...] = ()) -> str:
+    events = {
+        3: ojp_event(3, "Bahnhofplatz/HB", line="6", direction="H"),
+        5: ojp_event(5, "Zoo", line="6", direction="R"),
+        7: ojp_event(7, "Triemli", line="33", direction="H"),
+        9: ojp_event(9, "Langmauerstrasse", line="6", direction="H"),
+        11: ojp_event(11, "Zoo", line="6", direction="R"),
+        13: ojp_event(13, "Bahnhofplatz/HB", line="6", direction="H"),
+    }
+    return ojp_xml([event for minute, event in events.items() if minute not in without])
+
+
+async def test_board_for_one_direction_only(hass: HomeAssistant, api: FakeApi) -> None:
+    """Issue 7: only the trams of line 6 towards the main station, also the
+    one that turns short at another destination."""
+    api.board, api.ojp = _tram_board(), _tram_ojp()
+    entry = add_board(hass, options={CONF_OJP_TOKEN: "made-up-token", "directions": ["6|H"], CONF_LIMIT: 4})
+    await setup(hass, entry)
+    attributes = hass.states.get(BOARD_ENTITY).attributes
+    assert [(row["line"], row["to"]) for row in attributes["departures"]] == [
+        ("6", "Zürich, Bahnhofplatz/HB"),
+        ("6", "Zürich, Langmauerstrasse"),
+        ("6", "Zürich, Bahnhofplatz/HB"),
+    ]
+    assert {row["direction"] for row in attributes["departures"]} == {"H"}
+    assert attributes["direction_filter"] == ["6|H"] and attributes["departure_count"] == 3
+    # more rows than shown are asked for, from both sources, since some are thrown away
+    assert api.requests(BOARD_URL)[-1][1].query["limit"] == "12"
+    assert "<NumberOfResults>12</NumberOfResults>" in api.requests(OJP_ENDPOINT)[-1][2].decode("utf-8")
+
+
+async def test_filtered_board_is_cut_to_the_number_shown(hass: HomeAssistant, api: FakeApi) -> None:
+    api.board, api.ojp = _tram_board(), _tram_ojp()
+    entry = add_board(hass, options={CONF_OJP_TOKEN: "made-up-token", "directions": ["6|H", "6|R"], CONF_LIMIT: 2})
+    await setup(hass, entry)
+    rows = hass.states.get(BOARD_ENTITY).attributes["departures"]
+    assert [row["to"] for row in rows] == ["Zürich, Bahnhofplatz/HB", "Zürich, Zoo"]
+
+
+async def test_direction_of_a_row_the_realtime_answer_misses(hass: HomeAssistant, api: FakeApi, freezer) -> None:
+    """A row without a real-time match stays while its direction is unknown;
+    once the direction of that line and destination was seen, it is known."""
+    api.board, api.ojp = _tram_board(), _tram_ojp(without=(5, 7, 11))
+    entry = add_board(hass, options={CONF_OJP_TOKEN: "made-up-token", "directions": ["6|H"], CONF_LIMIT: 8})
+    await setup(hass, entry)
+    rows = hass.states.get(BOARD_ENTITY).attributes["departures"]
+    # the two trams to the zoo were not in the real-time answer: shown, without a direction
+    assert [row["to"] for row in rows].count("Zürich, Zoo") == 2
+    assert all("direction" not in row for row in rows if row["to"] == "Zürich, Zoo")
+    # the bus 33 was not in it either, but no direction of line 33 is wanted: gone
+    assert "33" not in [row["line"] for row in rows]
+
+    # the next answer has the later one of them: the earlier one, which stands
+    # before it on the board, is placed by it as well
+    api.ojp = _tram_ojp(without=(5,))
+    await poll(hass, freezer)
+    rows = hass.states.get(BOARD_ENTITY).attributes["departures"]
+    assert "Zürich, Zoo" not in [row["to"] for row in rows]
+
+    # and while the real-time source cannot be read, the learnt directions still filter
+    api.fail["ojp"] = 503
+    await poll(hass, freezer)
+    attributes = hass.states.get(BOARD_ENTITY).attributes
+    assert attributes["realtime"] is False
+    assert [row["to"] for row in attributes["departures"]] == [
+        "Zürich, Bahnhofplatz/HB",
+        "Zürich, Langmauerstrasse",
+        "Zürich, Bahnhofplatz/HB",
+    ]
+
+
+async def test_direction_filter_needs_the_token(hass: HomeAssistant, api: FakeApi) -> None:
+    """Chosen directions without a token: the whole stop, the usual request."""
+    api.board, api.ojp = _tram_board(), _tram_ojp()
+    entry = add_board(hass, options={"directions": ["6|H"], CONF_LIMIT: 4})
+    await setup(hass, entry)
+    attributes = hass.states.get(BOARD_ENTITY).attributes
+    assert attributes["departure_count"] == 6 and attributes["direction_filter"] == []
+    assert api.requests(BOARD_URL)[-1][1].query["limit"] == "4"
+    assert api.requests(OJP_ENDPOINT) == []
+
+
+async def test_board_without_a_filter_carries_the_direction(hass: HomeAssistant, api: FakeApi) -> None:
+    """With a token every matched row names its direction, filter or not."""
+    api.board, api.ojp = _tram_board(), _tram_ojp()
+    await setup(hass, add_board(hass, options={CONF_OJP_TOKEN: "made-up-token"}))
+    rows = hass.states.get(BOARD_ENTITY).attributes["departures"]
+    assert [(row["direction_id"], row["direction"]) for row in rows[:3]] == [("6|H", "H"), ("6|R", "R"), ("33|H", "H")]
+    assert hass.states.get(BOARD_ENTITY).attributes["direction_filter"] == []
+

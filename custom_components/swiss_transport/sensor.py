@@ -136,6 +136,9 @@ class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator
             "realtime": bool(data.get("realtime")),
             # Active disruption messages for the station (OJP only).
             "alerts": data.get("alerts") or [],
+            # The lines and directions the board is limited to ("6|H"), empty
+            # when it shows the whole stop.
+            "direction_filter": data.get("direction_filter") or [],
             # The whole board — the bundled card renders this; also handy for
             # templates and automations.
             "departures": deps,

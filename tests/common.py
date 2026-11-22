@@ -148,6 +148,8 @@ def ojp_event(
     planned_quay: str | None = None,
     estimated_quay: str | None = None,
     occupancy: tuple[str, ...] = (),
+    line: str | None = None,
+    direction: str | None = None,
 ) -> str:
     """One StopEventResult of an OJP answer; `estimated` is in minutes after NOW."""
     times = f"<TimetabledTime>{_ojp_time(minutes)}</TimetabledTime>" if minutes is not None else ""
@@ -164,7 +166,10 @@ def ojp_event(
         "<StopEventResult><StopEvent><ThisCall><CallAtStop>"
         f"{quays}<ServiceDeparture>{times}</ServiceDeparture>{levels}"
         "</CallAtStop></ThisCall>"
-        f"<Service><DestinationText><Text>{destination}</Text></DestinationText>"
+        "<Service>"
+        + (f"<siri:DirectionRef>{direction}</siri:DirectionRef>" if direction else "")
+        + (f"<PublishedServiceName><Text>{line}</Text></PublishedServiceName>" if line else "")
+        + f"<DestinationText><Text>{destination}</Text></DestinationText>"
         f"<Cancelled>{'true' if cancelled else 'false'}</Cancelled></Service>"
         "</StopEvent></StopEventResult>"
     )

@@ -55,6 +55,18 @@ CONF_LINE_LABEL = "line_label"
 # disruption messages. Delays, cancellations and occupancy come from
 # transport.opendata.ch without a token.
 CONF_OJP_TOKEN = "ojp_token"
+# Optional, station boards with a token only: show just these lines in these
+# directions. A list of ids "<line>|<direction>", e.g. "6|H", as the OJP
+# answer names them (H outward, R return). At a tram or bus stop the two
+# directions leave from the two sides of the street, and the direction is
+# what tells them apart everywhere: the Haltekante the answer also carries is
+# missing at many stops, and a short-turn journey keeps its direction while
+# its destination changes. Empty: the whole stop.
+CONF_DIRECTIONS = "directions"
+# With a direction filter the board is asked for this many times the wanted
+# rows (the other directions are thrown away), up to DIRECTION_FETCH_MAX.
+DIRECTION_FETCH_FACTOR = 3
+DIRECTION_FETCH_MAX = 60
 OJP_ENDPOINT = "https://api.opentransportdata.swiss/ojp20"
 OJP_REQUESTOR_REF = "HA-Swiss-Transport"
 

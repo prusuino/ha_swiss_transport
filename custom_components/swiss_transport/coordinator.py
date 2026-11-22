@@ -19,11 +19,14 @@ from .const import (
     API_BASE,
     CONF_LIMIT,
     CONF_LINE_LABEL,
+    CONF_DIRECTIONS,
     CONF_OJP_TOKEN,
     CONF_STATION_ID,
     CONF_TRANSPORTATIONS,
     CONNECTION_UPDATE_INTERVAL_SECONDS,
     DEFAULT_LIMIT,
+    DIRECTION_FETCH_FACTOR,
+    DIRECTION_FETCH_MAX,
     DEFAULT_LINE_LABEL,
     DOMAIN,
     FETCH_TIMEOUT_SECONDS,
@@ -326,6 +329,9 @@ def _parse_ojp_stationboard(xml_text: str) -> dict:
         events.setdefault(planned, []).append(
             {
                 "destination": (_txt(r, ".//o:DestinationText/o:Text") or "").strip(),
+                "direction_id": _direction_id(
+                    _txt(r, ".//o:Service/o:PublishedServiceName/o:Text"), _txt(r, ".//o:Service/s:DirectionRef")
+                ),
                 "estimated_ts": estimated,
                 "cancelled": cancelled,
                 "planned_quay": planned_quay,
@@ -334,6 +340,54 @@ def _parse_ojp_stationboard(xml_text: str) -> dict:
             }
         )
     return {"events": events, "alerts": alerts}
+
+
+def _direction_id(line: str | None, direction: str | None) -> str | None:
+    """The id of a line in one direction, "<line>|<direction>" ("6|H"), or
+    None when the answer names no direction for the journey."""
+    line, direction = (line or "").strip(), (direction or "").strip()
+    return f"{line}|{direction}" if line and direction else None
+
+
+def direction_choices(ojp: dict) -> dict[str, str]:
+    """The lines and directions of a parsed OJP answer, for choosing from:
+    id -> "<line> → <most frequent destination>", ordered by line. Where the
+    stop has named Haltekanten (the large ones: "A", "D", a track number),
+    the one most journeys of that direction leave from is added ("· D"), so
+    the side of the street can be recognised."""
+    destinations: dict[str, dict[str, int]] = {}
+    quays: dict[str, dict[str, int]] = {}
+    for matches in (ojp.get("events") or {}).values():
+        for event in matches:
+            key = event.get("direction_id")
+            if not key:
+                continue
+            counts = destinations.setdefault(key, {})
+            counts[event["destination"]] = counts.get(event["destination"], 0) + 1
+            quay = (event.get("planned_quay") or "").strip()
+            if quay:
+                quays.setdefault(key, {})[quay] = quays.get(key, {}).get(quay, 0) + 1
+
+    def order(key: str) -> tuple:
+        line, _, direction = key.partition("|")
+        digits = "".join(ch for ch in line if ch.isdigit())
+        return (0, int(digits), line, direction) if digits else (1, 0, line, direction)
+
+    choices: dict[str, str] = {}
+    for key in sorted(destinations, key=order):
+        counts = destinations[key]
+        usual = max(counts, key=lambda name: (counts[name], name))
+        label = f"{key.partition('|')[0]} → {usual}" if usual else key.partition("|")[0]
+        if key in quays:
+            label += " · " + max(quays[key], key=lambda name: (quays[key][name], name))
+        choices[key] = label
+    return choices
+
+
+async def async_fetch_directions(hass: HomeAssistant, token: str, station_id: str) -> dict[str, str]:
+    """The lines and directions that currently leave from a stop (see
+    `direction_choices`). Raises like `async_fetch_ojp_stationboard`."""
+    return direction_choices(await async_fetch_ojp_stationboard(hass, token, station_id, DIRECTION_FETCH_MAX))
 
 
 class OjpAuthError(Exception):
@@ -400,6 +454,9 @@ def _apply_ojp(board: dict, ojp: dict) -> None:
                     break
             match = match or matches[0]
 
+        if match.get("direction_id"):
+            dep["direction_id"] = match["direction_id"]
+            dep["direction"] = match["direction_id"].rpartition("|")[2]
         # Cancelled when either source says so.
         dep["cancelled"] = bool(dep.get("cancelled")) or match["cancelled"]
         if match.get("occupancy"):
@@ -589,6 +646,41 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
         # True after the OJP token was rejected and the warning was logged;
         # cleared as soon as the token is accepted again.
         self._ojp_auth_failed = False
+        # Direction filter: what the real-time answers have told so far about
+        # which way a line with a given destination goes, (line label,
+        # destination) -> direction id. It places the rows the real-time
+        # answer does not cover (or all rows while it cannot be read).
+        self._known_directions: dict[tuple[str, str], str] = {}
+
+    def _filter_directions(self, board: dict, wanted: set[str], limit: int) -> None:
+        """Keep the departures of the wanted lines and directions, in place.
+        A departure of a wanted line whose direction is not known (yet)
+        stays: showing one row too many is the smaller mistake than hiding
+        a tram that runs. One of a line that is not wanted in any direction
+        goes, whatever its direction would be."""
+        departures = board.get("departures", [])
+        # First learn from every row the real-time answer placed, then place
+        # the others: the timetable board reaches further ahead than the
+        # real-time answer, so the later rows of a line have no match.
+        for dep in departures:
+            if dep.get("direction_id"):
+                self._known_directions[(dep.get("line") or "", dep.get("to") or "")] = dep["direction_id"]
+        wanted_lines = {key.partition("|")[0] for key in wanted}
+        kept = []
+        for dep in departures:
+            way = (dep.get("line") or "", dep.get("to") or "")
+            if not dep.get("direction_id") and way in self._known_directions:
+                dep["direction_id"] = self._known_directions[way]
+                dep["direction"] = dep["direction_id"].rpartition("|")[2]
+            if dep.get("direction_id"):
+                if dep["direction_id"] in wanted:
+                    kept.append(dep)
+            elif wanted_lines & {dep.get("line"), dep.get("number"), f"{dep.get('category') or ''}{dep.get('number') or ''}"}:
+                # the line as the board names it ("6", "S9") or as category
+                # and number, which is how the real-time source names trains
+                kept.append(dep)
+        board["departures"] = kept[:limit]
+        board["direction_filter"] = sorted(wanted)
 
     async def _async_update_data(self) -> dict:
         data = self._entry.data
@@ -597,11 +689,16 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
         transportations = options.get(
             CONF_TRANSPORTATIONS, data.get(CONF_TRANSPORTATIONS)
         ) or None
+        token = _resolve_ojp_token(self.hass, self._entry)
+        # The direction filter needs the token (the direction comes from the
+        # real-time answer); without one the whole stop is shown.
+        wanted = set(options.get(CONF_DIRECTIONS) or []) if token else set()
+        fetch_limit = min(limit * DIRECTION_FETCH_FACTOR, max(DIRECTION_FETCH_MAX, limit)) if wanted else limit
         try:
             result = await async_fetch_stationboard(
                 self.hass,
                 data[CONF_STATION_ID],
-                limit,
+                fetch_limit,
                 transportations,
                 options.get(CONF_LINE_LABEL, DEFAULT_LINE_LABEL),
             )
@@ -616,11 +713,10 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
         # best-effort: any failure leaves the opendata.ch board untouched. A
         # rejected token is the one failure that is not transient, so it is
         # said once at WARNING level instead of disappearing into debug logs.
-        token = _resolve_ojp_token(self.hass, self._entry)
         if token:
             try:
                 ojp = await async_fetch_ojp_stationboard(
-                    self.hass, token, data[CONF_STATION_ID], limit
+                    self.hass, token, data[CONF_STATION_ID], fetch_limit
                 )
                 _apply_ojp(result, ojp)
             except OjpAuthError as err:
@@ -646,6 +742,8 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
         else:
             # Token removed: a token entered later starts with a clean slate.
             self._ojp_auth_failed = False
+        if wanted:
+            self._filter_directions(result, wanted, limit)
 
         # Resolve the station address once (best-effort). Retried on later
         # polls only until it succeeds, so a transient geocoder hiccup isn't

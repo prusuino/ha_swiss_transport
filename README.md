@@ -27,6 +27,7 @@ Both come with a bundled Lovelace card styled like a station departure board, pl
 - **Four dashboard cards**: a board card that recognizes the sensor type, a departure board laid out like a station display, a connection card and a controls card — two looks, the real operator colours of bus and tram lines, all with a visual editor.
 - **Browse the timetable**: switch every board from live to any date and time, or to an arrivals board.
 - **Delays, cancellations and occupancy without an account**: a cancelled train stays on the board, struck through and marked. With a free opentransportdata.swiss token on top: delays to the second, platform changes and disruption messages.
+- **One side of the street**: at a tram or bus stop, limit a board to the lines and directions you actually take (with a real-time token).
 - **Built for the automation editor**: triggers and conditions for a delayed next departure and a reported disruption, and a blueprint that reminds you before the next departure — no templates needed.
 - **Two actions for everything else**: `swiss_transport.get_departures` and `swiss_transport.get_connections` answer for any stop, configured or not — made for scripts and Assist.
 - **A dashboard without building one**: the bundled strategy lays out your boards and connections by itself.
@@ -287,6 +288,8 @@ By default all data comes from transport.opendata.ch: delays to the minute, canc
 
 This is completely optional. Without a token nothing changes and everything keeps working from transport.opendata.ch.
 
+With a token you can also limit a station board to **some lines and directions** — see [One direction only](#one-direction-only-needs-a-token).
+
 ### Getting a token (free)
 
 The token is free. On [opentransportdata.swiss](https://opentransportdata.swiss/) → **API Manager**:
@@ -305,6 +308,17 @@ Paste the token into the **Real-time token** field when adding a station, or lat
 If opentransportdata.swiss rejects the token later (expired, revoked or replaced in the API Manager), Home Assistant shows **Reauthentication required** for the integration. The station boards keep running without real-time data in the meantime. Enter the new token there once and it applies to every board again; an empty field removes the token.
 
 > Note: the token is a credential — treat it like a password. It is stored in Home Assistant like any other integration secret and never leaves your instance except in requests to opentransportdata.swiss.
+
+## One direction only (needs a token)
+
+At a tram or bus stop the two directions leave from the two sides of the street, and a board of the whole stop is half full of departures you cannot take from where you stand. With a real-time token the station's **Configure** dialog offers **Only these lines and directions**: it lists what leaves from the stop right now, one entry per line and direction, named after the destination most journeys of that direction have (`6 → Bahnhofplatz/HB`, `6 → Zoo`). Tick what you take and the board, its sensor state and every card on it show only those departures. Leave it empty for the whole stop.
+
+- The **direction** is what the real-time source says for every journey (outward or return). A tram that turns short at another destination keeps its direction, so it stays on your board — which is where filtering by destination text fails.
+- At the large stops that name their Haltekanten (`A`, `D`, a track number) the entry also shows the one the direction usually leaves from (`6 → Bahnhofplatz/HB · D`), so you can recognise your side. The Haltekante itself is not what is filtered on: many stops have none in the data, and at others only part of the departures carry one.
+- To still fill the board, three times as many departures as shown are asked for (up to 60) and the others are thrown away. The number of requests stays the same.
+- A departure of a ticked line whose direction is **not known yet** stays on the board: the timetable reaches further ahead than the real-time answer, and a destination seen for the first time (a late short-turn) cannot be placed until the real-time source has named it once. One row too many was judged the smaller mistake than a hidden tram.
+- Without a token, or while the token is rejected, the board shows the whole stop. What you ticked is kept.
+- Each departure in the `departures` attribute carries `direction` (`H` outward, `R` return) and `direction_id` (`6|H`) when the real-time source named them; the sensor attribute `direction_filter` lists what the board is limited to.
 
 ## Language
 
