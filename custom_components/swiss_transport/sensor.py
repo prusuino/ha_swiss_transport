@@ -80,6 +80,10 @@ class SwissTransportDeparturesSensor(CoordinatorEntity[SwissTransportCoordinator
     _attr_has_entity_name = True
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:train"
+    # The board changes with nearly every refresh; recorded, each one would
+    # add a full copy of the list to the database. The attributes stay on the
+    # live state for cards, templates, triggers and conditions.
+    _unrecorded_attributes = frozenset({"departures", "alerts"})
 
     @property
     def attribution(self) -> str:
@@ -146,6 +150,8 @@ class SwissConnectionSensor(CoordinatorEntity[SwissConnectionCoordinator], Senso
     _attr_attribution = ATTRIBUTION
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:transit-connection-variant"
+    # Not recorded, for the same reason as the departure board.
+    _unrecorded_attributes = frozenset({"connections"})
 
     def __init__(
         self, hass: HomeAssistant, coordinator: SwissConnectionCoordinator, entry: ConfigEntry

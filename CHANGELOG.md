@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **The lists are no longer written to the database.** The attributes `departures`, `alerts` and `connections` change with nearly every refresh, and the recorder stored a full copy each time — for a busy station that is a few megabytes a day that nobody reads. They are now left out of the recorder. Nothing changes for cards, templates, triggers, conditions and actions: they read the live state, which still carries the lists. The state itself (time of the next departure) and the small attributes are recorded as before. Reported by @izacus (#6).
+
 ## 1.15.0 — 2026-11-22
 
 transport.opendata.ch was rebuilt in October 2026: it no longer passes requests on to search.ch but answers from its own copy of the national timetable and real-time feed of opentransportdata.swiss. The integration works with it unchanged; this version uses what the new service adds and drops what only the old one needed.

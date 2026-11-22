@@ -184,3 +184,29 @@ async def test_connection_sensor_and_device_are_registered_under_the_route(hass:
     assert device.name == "Bern → Thun"
     assert device.model == "Connection"
     assert device.sw_version == VERSION
+
+
+async def test_the_lists_are_not_recorded_but_stay_on_the_state(hass: HomeAssistant, api: FakeApi) -> None:
+    """The board and the connection list change with nearly every refresh.
+    The recorder leaves them out; the live state keeps them for the cards,
+    templates, triggers and conditions."""
+    api.board = board([departure(4, "S", "9")])
+    api.connections = connections([connection(5)])
+    await setup(hass, add_board(hass))
+    await setup(hass, add_connection(hass))
+
+    platform_entities = {
+        entity.entity_id: entity for entity in hass.data["sensor"].entities
+    }
+    board_entity = platform_entities[BOARD_ENTITY]
+    route_entity = platform_entities[ROUTE_ENTITY]
+    assert {"departures", "alerts"} <= board_entity._Entity__combined_unrecorded_attributes
+    assert "connections" in route_entity._Entity__combined_unrecorded_attributes
+    # Small attributes are still recorded.
+    for kept in ("station_id", "station_name", "departure_count", "limit", "realtime"):
+        assert kept not in board_entity._Entity__combined_unrecorded_attributes
+    for kept in ("from_name", "to_name", "connection_count"):
+        assert kept not in route_entity._Entity__combined_unrecorded_attributes
+
+    assert len(hass.states.get(BOARD_ENTITY).attributes["departures"]) == 1
+    assert len(hass.states.get(ROUTE_ENTITY).attributes["connections"]) == 1
