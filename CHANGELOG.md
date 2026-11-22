@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.15.0 — 2026-11-22
 
 transport.opendata.ch was rebuilt in October 2026: it no longer passes requests on to search.ch but answers from its own copy of the national timetable and real-time feed of opentransportdata.swiss. The integration works with it unchanged; this version uses what the new service adds and drops what only the old one needed.
 
