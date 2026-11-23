@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.17.1 — 2026-11-23
+
+- **Fixed: a delay or disruption that was there after an outage was not reported.** While the timetable cannot be read a board is unavailable, and Home Assistant ignores every change out of "unavailable". When the board came back with a delayed next departure or with a disruption message, *Departure delayed* and *Disruption reported* stayed silent. Both triggers now compare with the board before the outage: a delay or disruption that is new fires, one that was already there does not fire a second time.
+
 ## 1.17.0 — 2026-11-23
 
 - **Night and rush-hour lines in the choice of lines and directions.** The **Configure** dialog listed only what leaves from the stop in the next 60 departures, so a night line or a rush-hour line could be ticked only while it ran, and was missing from a filtered board the rest of the time. The dialog now also looks ahead: at the next working-day morning and evening peak and at the next night to Saturday. That is three more requests each time the dialog is opened, none in normal operation.

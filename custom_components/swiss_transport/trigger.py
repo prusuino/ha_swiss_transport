@@ -15,7 +15,7 @@ from __future__ import annotations
 import voluptuous as vol
 
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorDeviceClass
-from homeassistant.const import CONF_FOR, CONF_OPTIONS, CONF_TARGET
+from homeassistant.const import CONF_FOR, CONF_OPTIONS, CONF_TARGET, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 
@@ -66,47 +66,70 @@ else:
         items = state.attributes.get("departures") or state.attributes.get("connections") or []
         return items[0] if items else None
 
-    class _DepartureDelayed(EntityTriggerBase):
+    _GAP = (STATE_UNAVAILABLE, STATE_UNKNOWN)
+
+    class _BoardTrigger(EntityTriggerBase):
+        """Base of the two triggers: fires when a board starts to match.
+
+        `_matches` says whether a board state shows what the trigger waits
+        for; the trigger fires when a state matches and the one before it
+        did not. The core skips every change out of "unavailable" or
+        "unknown", and a board is unavailable while the timetable cannot be
+        read - so a delay or a disruption that is there when the board comes
+        back would never be reported. Such a change is let through and
+        judged against the last state seen before the gap: it fires unless
+        that state matched already, also when nothing is known from before.
+        The core asks is_valid_state for every state with a value and only
+        then is_valid_transition, so the match is remembered there.
+        """
+
+        _domain_specs = BOARD_DOMAIN_SPECS
+        _excluded_from_states = frozenset()
+
+        def __init__(self, hass: HomeAssistant, config) -> None:
+            super().__init__(hass, config)
+            self._last_match: dict[str, bool] = {}
+            self._previous_match: dict[str, bool | None] = {}
+
+        def entity_filter(self, entities: set[str]) -> set[str]:
+            return _own_entities(self._hass, super().entity_filter(entities))
+
+        def _matches(self, state: State) -> bool:
+            raise NotImplementedError
+
+        def is_valid_state(self, state: State, report_not_triggered) -> bool:
+            matches = self._matches(state)
+            self._previous_match[state.entity_id] = self._last_match.get(state.entity_id)
+            self._last_match[state.entity_id] = matches
+            return matches
+
+        def is_valid_transition(self, from_state: State, to_state: State) -> bool:
+            if from_state.state in _GAP:
+                return self._previous_match.get(to_state.entity_id) is not True
+            return not self._matches(from_state)
+
+    class _DepartureDelayed(_BoardTrigger):
         """The next departure (or connection) is delayed by at least N minutes.
 
         Fires when the delay reaches the minimum, not again while it stays
         there: a board that keeps refreshing with the same delay is quiet."""
 
-        _domain_specs = BOARD_DOMAIN_SPECS
         _schema = DELAY_SCHEMA
 
         def __init__(self, hass: HomeAssistant, config) -> None:
             super().__init__(hass, config)
             self._minimum = int(self._options.get(CONF_MINIMUM_DELAY) or 5)
 
-        def entity_filter(self, entities: set[str]) -> set[str]:
-            return _own_entities(self._hass, super().entity_filter(entities))
-
-        def _delay(self, state: State) -> int | None:
+        def _matches(self, state: State) -> bool:
             item = _next_item(state)
             delay = item.get("delay") if item else None
-            return int(delay) if isinstance(delay, (int, float)) else None
+            return isinstance(delay, (int, float)) and int(delay) >= self._minimum
 
-        def is_valid_state(self, state: State, report_not_triggered) -> bool:
-            delay = self._delay(state)
-            return delay is not None and delay >= self._minimum
-
-        def is_valid_transition(self, from_state: State, to_state: State) -> bool:
-            return not self.is_valid_state(from_state, lambda *a, **k: None)
-
-    class _DisruptionReported(EntityTriggerBase):
+    class _DisruptionReported(_BoardTrigger):
         """A disruption message appears for the stop (real-time source)."""
 
-        _domain_specs = BOARD_DOMAIN_SPECS
-
-        def entity_filter(self, entities: set[str]) -> set[str]:
-            return _own_entities(self._hass, super().entity_filter(entities))
-
-        def is_valid_state(self, state: State, report_not_triggered) -> bool:
+        def _matches(self, state: State) -> bool:
             return bool(state.attributes.get("alerts"))
-
-        def is_valid_transition(self, from_state: State, to_state: State) -> bool:
-            return not bool(from_state.attributes.get("alerts"))
 
     TRIGGERS: dict[str, type[Trigger]] = {
         "departure_delayed": _DepartureDelayed,
