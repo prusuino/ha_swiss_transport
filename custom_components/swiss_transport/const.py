@@ -72,6 +72,19 @@ DIRECTION_FETCH_MAX = 60
 # of results ends a row or two earlier than the board. A few more are asked
 # for, so that the last rows of the board find their match too.
 OJP_EXTRA_RESULTS = 5
+# When the Configure dialog lists the lines of a stop it also looks ahead:
+# (weekdays, hour, minute) in Swiss time, each at its next occurrence. The
+# working-day peaks bring the rush-hour lines, the night to Saturday the
+# night network.
+DIRECTION_SAMPLES = (
+    ((0, 1, 2, 3, 4), 7, 30),
+    ((0, 1, 2, 3, 4), 17, 30),
+    ((5,), 1, 30),
+)
+# The lines and directions a board has seen are remembered for the Configure
+# dialog. No stop has anywhere near this many; the cap only bounds the file.
+SEEN_DIRECTIONS_MAX = 400
+SEEN_DIRECTIONS_SAVE_DELAY = 60
 OJP_ENDPOINT = "https://api.opentransportdata.swiss/ojp20"
 OJP_REQUESTOR_REF = "HA-Swiss-Transport"
 

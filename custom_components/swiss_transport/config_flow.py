@@ -56,7 +56,13 @@ from .const import (
     MAX_LIMIT,
     TRANSPORT_TYPES,
 )
-from .coordinator import OjpAuthError, async_fetch_directions, async_search_stations, async_validate_ojp_token
+from .coordinator import (
+    OjpAuthError,
+    async_fetch_directions,
+    async_search_stations,
+    async_validate_ojp_token,
+    direction_order,
+)
 from .localization import t, transport_type_label
 
 CONF_QUERY = "query"
@@ -95,23 +101,26 @@ def _directions_selector(choices: dict[str, str]) -> SelectSelector:
     )
 
 
-async def _async_direction_choices(hass, token: str, station_id: str, chosen: list[str]) -> dict[str, str]:
+async def _async_direction_choices(hass, token: str, station_id: str, chosen: list[str], coordinator) -> dict[str, str]:
     """The lines and directions to choose from at a stop: what leaves there
-    now according to the real-time source, and whatever is chosen already
-    (a line that does not run at this hour must not drop out of the choice).
-    Empty without a token, and when the source cannot be read and nothing
-    is chosen."""
+    now and at a few later times according to the real-time source (the
+    peaks, a weekend night), what the board has seen there before, and
+    whatever is chosen already. Empty without a token, and when nothing is
+    known or chosen. What the look ahead finds is remembered by the board."""
     choices: dict[str, str] = {}
     if token:
         try:
             choices = await async_fetch_directions(hass, token, station_id)
         except Exception:  # noqa: BLE001 - the dialog opens without the choice rather than not at all
             choices = {}
+        if hasattr(coordinator, "remember_directions"):
+            coordinator.remember_directions(choices)
+        choices = {**(getattr(coordinator, "seen_directions", None) or {}), **choices}
     for key in chosen:
         if key not in choices:
             line, _, direction = key.partition("|")
             choices[key] = f"{line} ({direction})"
-    return choices
+    return {key: choices[key] for key in sorted(choices, key=direction_order)}
 
 
 def _token_selector() -> TextSelector:
@@ -512,7 +521,11 @@ class SwissTransportOptionsFlow(OptionsFlow):
             # (the direction comes from the real-time source).
             chosen = [str(key) for key in options.get(CONF_DIRECTIONS) or []]
             choices = await _async_direction_choices(
-                self.hass, _effective_token(self.hass), data[CONF_STATION_ID], chosen
+                self.hass,
+                _effective_token(self.hass),
+                data[CONF_STATION_ID],
+                chosen,
+                getattr(self.config_entry, "runtime_data", None),
             )
             if choices:
                 fields[vol.Optional(CONF_DIRECTIONS, default=chosen)] = _directions_selector(choices)

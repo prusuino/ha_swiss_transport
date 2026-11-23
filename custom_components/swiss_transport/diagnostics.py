@@ -74,6 +74,7 @@ def _coordinator_info(coordinator: Any) -> dict[str, Any]:
         "last_exception": type(exception).__name__ if exception else None,
         "update_interval_seconds": interval.total_seconds() if isinstance(interval, timedelta) else interval,
         "data": _compact(getattr(coordinator, "data", None)),
+        "seen_directions": getattr(coordinator, "seen_directions", None),
     }
 
 

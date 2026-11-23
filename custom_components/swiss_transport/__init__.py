@@ -10,7 +10,7 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
 from .const import CONF_ENTRY_TYPE, CONTROLS_OWNER, DOMAIN, ENTRY_TYPE_CONNECTION
-from .coordinator import SwissConnectionCoordinator, SwissTransportCoordinator
+from .coordinator import SwissConnectionCoordinator, SwissTransportCoordinator, directions_store
 
 type SwissTransportConfigEntry = ConfigEntry[SwissTransportCoordinator | SwissConnectionCoordinator]
 from .issues import async_clear_entry_issues
@@ -43,6 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SwissTransportConfigEntr
         coordinator = SwissConnectionCoordinator(hass, entry)
     else:
         coordinator = SwissTransportCoordinator(hass, entry)
+        await coordinator.async_load_directions()
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = coordinator
@@ -64,3 +65,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: SwissTransportConfigEnt
         if hass.data.get(CONTROLS_OWNER) == entry.entry_id:
             hass.data.pop(CONTROLS_OWNER, None)
     return unloaded
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: SwissTransportConfigEntry) -> None:
+    """Delete what the entry remembered (the lines and directions seen)."""
+    await directions_store(hass, entry.entry_id).async_remove()

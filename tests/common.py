@@ -203,7 +203,7 @@ class FakeApi:
     The attributes hold the next answers and can be changed at any time.
     `fail[route]` makes a route answer with an HTTP status (an int) or raise
     (an exception); the routes are "board", "connections", "locations",
-    "geocode" and "ojp"."""
+    "geocode", "ojp" and "ojp_later" (only the requests for a later time)."""
 
     def __init__(self, mocker: AiohttpClientMocker) -> None:
         self.mocker = mocker
@@ -212,6 +212,8 @@ class FakeApi:
         self.stations: dict[str, list[dict]] = {"bern": [BERN], "thun": [THUN]}
         self.address: dict[str, Any] = ADDRESS
         self.ojp: str = ojp_xml()
+        # the answer to a request for a later time; None = the same as for now
+        self.ojp_later: str | None = None
         self.fail: dict[str, int | Exception] = {}
         mocker.get(BOARD_URL, side_effect=self._board)
         mocker.get(CONNECTIONS_URL, side_effect=self._connections)
@@ -241,7 +243,9 @@ class FakeApi:
         return self._answer("geocode", method, url, json=self.address)
 
     async def _ojp(self, method, url, data) -> AiohttpClientMockResponse:
-        return self._answer("ojp", method, url, text=self.ojp)
+        later = b"<DepArrTime>" in data
+        route = "ojp_later" if later and "ojp_later" in self.fail else "ojp"
+        return self._answer(route, method, url, text=self.ojp_later if later and self.ojp_later is not None else self.ojp)
 
     def requests(self, url: str) -> list[tuple]:
         """The requests sent to one address so far, as (method, url, body, headers)."""

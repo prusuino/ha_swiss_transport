@@ -92,7 +92,7 @@
         "data_description": {
           "ojp_token": "Jeton d'API OJP 2.0 facultatif de opentransportdata.swiss pour des retards à la seconde, les changements de voie et les messages de perturbation. Saisi une fois, il enrichit chaque tableau des départs. Laissez vide pour n'utiliser que opendata.ch.",
           "line_label": "Nom des lignes de train : « S » garde la catégorie seule, « S9 » catégorie et numéro, « 9 » le numéro seul. Bus et tram affichent toujours le numéro.",
-          "directions": "À un arrêt de tram ou de bus, les deux directions partent des deux côtés de la rue. Cochez les lignes et les directions que vous prenez, et le tableau n'affiche que celles-ci. Le choix énumère ce qui part de l'arrêt en ce moment ; il nécessite le jeton temps réel, d'où provient la direction, et apparaît à la prochaine ouverture de ce dialogue après en avoir saisi un. Un départ dont la direction n'est pas encore connue reste sur le tableau."
+          "directions": "À un arrêt de tram ou de bus, les deux directions partent des deux côtés de la rue. Cochez les lignes et les directions que vous prenez, et le tableau n'affiche que celles-ci. Le choix énumère ce qui part de l'arrêt en ce moment, aux prochaines heures de pointe d'un jour ouvrable et durant la prochaine nuit du vendredi au samedi, ainsi que chaque ligne et direction que le tableau y a vues ; les lignes de pointe et de nuit peuvent donc être cochées à tout moment ; il nécessite le jeton temps réel, d'où provient la direction, et apparaît à la prochaine ouverture de ce dialogue après en avoir saisi un. Un départ dont la direction n'est pas encore connue reste sur le tableau."
         }
       }
     },

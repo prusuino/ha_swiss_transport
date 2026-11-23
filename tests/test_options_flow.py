@@ -31,6 +31,7 @@ from .common import (
     add_connection,
     ojp_event,
     ojp_xml,
+    poll,
     setup,
 )
 
@@ -112,9 +113,9 @@ async def test_emptied_token_field_removes_the_token_everywhere(hass: HomeAssist
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert CONF_OJP_TOKEN not in entry.options
     assert CONF_OJP_TOKEN not in other.options
-    # one request when the dialog opened (the lines and directions to choose
-    # from), none to check a token that was taken out
-    assert len(api.requests(OJP_ENDPOINT)) == 1
+    # four requests when the dialog opened (the lines and directions to choose
+    # from: now and three later times), none to check a token that was taken out
+    assert len(api.requests(OJP_ENDPOINT)) == 4
 
 
 async def test_rejected_token_is_not_saved(hass: HomeAssistant, api: FakeApi) -> None:
@@ -232,6 +233,66 @@ async def test_chosen_directions_stay_in_the_choice(hass: HomeAssistant, api: Fa
         {CONF_LIMIT: 8, "transportations": [], CONF_OJP_TOKEN: "made-up-token", CONF_LINE_LABEL: "category", CONF_DIRECTIONS: []},
     )
     assert entry.options[CONF_DIRECTIONS] == []
+
+
+async def test_the_dialog_looks_ahead_for_night_and_rush_hour_lines(hass: HomeAssistant, api: FakeApi) -> None:
+    """Issue 7: the dialog is opened on a Monday morning; the night lines and
+    the rush-hour lines are offered all the same, and the board remembers them."""
+    api.ojp = TRAMS
+    api.ojp_later = ojp_xml([ojp_event(900, "Bellevue", line="N4", direction="R"), ojp_event(40, "Zoo", line="6", direction="R")])
+    entry = await setup(hass, add_board(hass, options={CONF_OJP_TOKEN: "made-up-token"}))
+    before = len(api.requests(OJP_ENDPOINT))
+    result = await _open(hass, entry)
+    assert _choices(result) == {"N4|R": "N4 → Bellevue", "6|H": "6 → Bahnhofplatz/HB", "6|R": "6 → Zoo", "33|H": "33 → Triemli · C"}
+    asked = [call[2].decode("utf-8") for call in api.requests(OJP_ENDPOINT)[before:]]
+    # now, the same Monday at 07:30 and 17:30, the night to Saturday at 01:30 (Swiss time)
+    assert sorted(body.partition("<DepArrTime>")[2].partition("<")[0] for body in asked) == [
+        "",
+        "2026-11-09T06:30:00Z",
+        "2026-11-09T16:30:00Z",
+        "2026-11-14T00:30:00Z",
+    ]
+    assert entry.runtime_data.seen_directions["N4|R"] == "N4 → Bellevue"
+
+    # a look ahead that fails only leaves its lines out
+    api.fail["ojp_later"] = 503
+    api.ojp_later = ojp_xml([ojp_event(900, "Somewhere", line="N9", direction="H")])
+    result = await _open(hass, entry)
+    assert "N9|H" not in _choices(result) and "6|H" in _choices(result)
+
+
+async def test_lines_seen_earlier_are_offered_too(hass: HomeAssistant, api: FakeApi, freezer, hass_storage) -> None:
+    """Issue 7: a night line does not run when the dialog is opened, but the
+    board has seen it: it is offered, with its label, also after a restart."""
+    api.ojp = ojp_xml([ojp_event(3, "Bahnhofplatz/HB", line="6", direction="H"), ojp_event(4, "Bellevue", line="N4", direction="R")])
+    entry = add_board(hass, options={CONF_OJP_TOKEN: "made-up-token"})
+    await setup(hass, entry)
+    assert entry.runtime_data.seen_directions == {"6|H": "6 → Bahnhofplatz/HB", "N4|R": "N4 → Bellevue"}
+
+    # by day only the trams run; the label of a line that runs is the fresh one
+    api.ojp = ojp_xml([ojp_event(3, "Zoo", line="6", direction="R"), ojp_event(5, "Langmauerstrasse", line="6", direction="H")])
+    result = await _open(hass, entry)
+    assert _choices(result) == {"N4|R": "N4 → Bellevue", "6|H": "6 → Langmauerstrasse", "6|R": "6 → Zoo"}
+
+    # the real-time source cannot be read: what was seen is still offered
+    api.fail["ojp"] = 503
+    result = await _open(hass, entry)
+    assert _choices(result) == {"N4|R": "N4 → Bellevue", "6|H": "6 → Bahnhofplatz/HB", "6|R": "6 → Zoo"}
+    api.fail.clear()
+
+    # written to disk after a while, read again after a restart
+    await poll(hass, freezer)
+    await poll(hass, freezer)
+    key = f"swiss_transport.directions_{entry.entry_id}"
+    assert hass_storage[key]["data"] == {"6|H": "6 → Bahnhofplatz/HB", "N4|R": "N4 → Bellevue", "6|R": "6 → Zoo"}
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert "N4|R" in entry.runtime_data.seen_directions
+
+    # removing the station deletes what it remembered
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert key not in hass_storage
 
 
 async def test_no_choice_of_directions_without_a_token(hass: HomeAssistant, api: FakeApi) -> None:

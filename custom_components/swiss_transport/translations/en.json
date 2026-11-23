@@ -92,7 +92,7 @@
         "data_description": {
           "ojp_token": "Optional OJP 2.0 API token from opentransportdata.swiss for delays to the second, platform changes and disruption messages. Entered once, it enriches every station board. Leave empty to use opendata.ch only.",
           "line_label": "Name of train lines: \"S\" keeps the category only, \"S9\" is category and number, \"9\" the number only. Bus and tram always show the number.",
-          "directions": "At a tram or bus stop the two directions leave from the two sides of the street. Tick the lines and directions you take, and the board shows only those. The choice lists what leaves from the stop now; it needs the real-time token, which is where the direction comes from, and appears the next time you open this dialog after entering one. A departure whose direction is not known yet stays on the board."
+          "directions": "At a tram or bus stop the two directions leave from the two sides of the street. Tick the lines and directions you take, and the board shows only those. The choice lists what leaves from the stop now, at the next working-day peaks and in the next night to Saturday, and every line and direction the board has seen there, so rush-hour and night lines can be ticked at any time; it needs the real-time token, which is where the direction comes from, and appears the next time you open this dialog after entering one. A departure whose direction is not known yet stays on the board."
         }
       }
     },

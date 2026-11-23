@@ -5,6 +5,7 @@ public transport.opendata.ch API. No authentication required.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
@@ -12,7 +13,9 @@ from datetime import datetime, timedelta, timezone
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .issues import IssueReporter
 from .const import (
@@ -27,6 +30,7 @@ from .const import (
     DEFAULT_LIMIT,
     DIRECTION_FETCH_FACTOR,
     DIRECTION_FETCH_MAX,
+    DIRECTION_SAMPLES,
     OJP_EXTRA_RESULTS,
     DEFAULT_LINE_LABEL,
     DOMAIN,
@@ -36,6 +40,8 @@ from .const import (
     OJP_ENDPOINT,
     OJP_REQUESTOR_REF,
     RATE_LIMIT_BACKOFF_SECONDS,
+    SEEN_DIRECTIONS_MAX,
+    SEEN_DIRECTIONS_SAVE_DELAY,
     UPDATE_INTERVAL_SECONDS,
 )
 
@@ -260,9 +266,11 @@ def _ojp_iso_to_ts(value) -> int | None:
         return None
 
 
-def _build_stop_event_request(station_id: str, limit: int) -> str:
-    """Minimal OJP 2.0 StopEventRequest for one stop, with real-time data."""
+def _build_stop_event_request(station_id: str, limit: int, when: datetime | None = None) -> str:
+    """Minimal OJP 2.0 StopEventRequest for one stop, with real-time data:
+    the departures from now on, or from `when` on."""
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    at = f"<DepArrTime>{when.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}</DepArrTime>" if when else ""
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<OJP xmlns="http://www.vdv.de/ojp" xmlns:siri="http://www.siri.org.uk/siri" version="2.0">'
@@ -273,7 +281,7 @@ def _build_stop_event_request(station_id: str, limit: int) -> str:
         f"<siri:RequestTimestamp>{ts}</siri:RequestTimestamp>"
         "<Location><PlaceRef>"
         f"<siri:StopPointRef>{station_id}</siri:StopPointRef>"
-        "</PlaceRef></Location>"
+        f"</PlaceRef>{at}</Location>"
         "<Params>"
         f"<NumberOfResults>{int(limit)}</NumberOfResults>"
         "<StopEventType>departure</StopEventType>"
@@ -358,6 +366,18 @@ def _direction_id(line: str | None, direction: str | None) -> str | None:
     return f"{line}|{direction}" if line and direction else None
 
 
+def direction_order(key: str) -> tuple:
+    """Sort key of a direction id: by line number, then line, then direction."""
+    line, _, direction = key.partition("|")
+    digits = "".join(ch for ch in line if ch.isdigit())
+    return (0, int(digits), line, direction) if digits else (1, 0, line, direction)
+
+
+def directions_store(hass: HomeAssistant, entry_id: str) -> Store:
+    """Where a station board keeps the lines and directions it has seen."""
+    return Store(hass, 1, f"{DOMAIN}.directions_{entry_id}")
+
+
 def direction_choices(ojp: dict) -> dict[str, str]:
     """The lines and directions of a parsed OJP answer, for choosing from:
     id -> "<line> → <most frequent destination>", ordered by line. Where the
@@ -377,13 +397,8 @@ def direction_choices(ojp: dict) -> dict[str, str]:
             if quay:
                 quays.setdefault(key, {})[quay] = quays.get(key, {}).get(quay, 0) + 1
 
-    def order(key: str) -> tuple:
-        line, _, direction = key.partition("|")
-        digits = "".join(ch for ch in line if ch.isdigit())
-        return (0, int(digits), line, direction) if digits else (1, 0, line, direction)
-
     choices: dict[str, str] = {}
-    for key in sorted(destinations, key=order):
+    for key in sorted(destinations, key=direction_order):
         counts = destinations[key]
         usual = max(counts, key=lambda name: (counts[name], name))
         label = f"{key.partition('|')[0]} → {usual}" if usual else key.partition("|")[0]
@@ -393,10 +408,43 @@ def direction_choices(ojp: dict) -> dict[str, str]:
     return choices
 
 
+def direction_sample_times(now: datetime) -> list[datetime]:
+    """The times looked at besides now to find the lines of a stop: the next
+    working-day morning and evening peak and the next night to Saturday.
+    Between them they show the rush-hour lines and the night network, which
+    the next departures at an ordinary hour do not. `now` in Swiss time."""
+    times = []
+    for weekdays, hour, minute in DIRECTION_SAMPLES:
+        at = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        while at <= now or at.weekday() not in weekdays:
+            at += timedelta(days=1)
+        times.append(at)
+    return times
+
+
 async def async_fetch_directions(hass: HomeAssistant, token: str, station_id: str) -> dict[str, str]:
-    """The lines and directions that currently leave from a stop (see
-    `direction_choices`). Raises like `async_fetch_ojp_stationboard`."""
-    return direction_choices(await async_fetch_ojp_stationboard(hass, token, station_id, DIRECTION_FETCH_MAX))
+    """The lines and directions that leave from a stop (see
+    `direction_choices`): now, and at the times of `direction_sample_times`.
+    Raises like `async_fetch_ojp_stationboard` when the request for now
+    fails; a look ahead that fails only leaves its lines out."""
+    now = dt_util.utcnow().astimezone(await dt_util.async_get_time_zone("Europe/Zurich"))
+    answers = await asyncio.gather(
+        async_fetch_ojp_stationboard(hass, token, station_id, DIRECTION_FETCH_MAX),
+        *(
+            async_fetch_ojp_stationboard(hass, token, station_id, DIRECTION_FETCH_MAX, when)
+            for when in direction_sample_times(now)
+        ),
+        return_exceptions=True,
+    )
+    if isinstance(answers[0], BaseException):
+        raise answers[0]
+    events: dict[int, list[dict]] = {}
+    for answer in answers:
+        if isinstance(answer, BaseException):
+            continue
+        for minute, matches in (answer.get("events") or {}).items():
+            events.setdefault(minute, []).extend(matches)
+    return direction_choices({"events": events})
 
 
 class OjpAuthError(Exception):
@@ -407,7 +455,9 @@ class OjpAuthError(Exception):
         self.status = status
 
 
-async def _async_ojp_post(hass: HomeAssistant, token: str, station_id: str, limit: int) -> str:
+async def _async_ojp_post(
+    hass: HomeAssistant, token: str, station_id: str, limit: int, when: datetime | None = None
+) -> str:
     """POST an OJP StopEventRequest and return the raw response body.
 
     Raises OjpAuthError when the token is rejected (HTTP 401/403) and the
@@ -417,7 +467,7 @@ async def _async_ojp_post(hass: HomeAssistant, token: str, station_id: str, limi
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/xml",
     }
-    body = _build_stop_event_request(station_id, limit)
+    body = _build_stop_event_request(station_id, limit, when)
     async with session.post(
         OJP_ENDPOINT, data=body.encode("utf-8"), headers=headers, timeout=FETCH_TIMEOUT_SECONDS
     ) as resp:
@@ -428,12 +478,12 @@ async def _async_ojp_post(hass: HomeAssistant, token: str, station_id: str, limi
 
 
 async def async_fetch_ojp_stationboard(
-    hass: HomeAssistant, token: str, station_id: str, limit: int
+    hass: HomeAssistant, token: str, station_id: str, limit: int, when: datetime | None = None
 ) -> dict:
     """POST an OJP StopEventRequest and parse the response. Raises on failure
     (OjpAuthError for a rejected token); callers treat enrichment as
     best-effort and fall back to opendata.ch."""
-    return _parse_ojp_stationboard(await _async_ojp_post(hass, token, station_id, limit))
+    return _parse_ojp_stationboard(await _async_ojp_post(hass, token, station_id, limit, when))
 
 
 async def async_validate_ojp_token(hass: HomeAssistant, token: str, station_id: str) -> None:
@@ -663,6 +713,26 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
         # destination) -> direction id. It places the rows the real-time
         # answer does not cover (or all rows while it cannot be read).
         self._known_directions: dict[tuple[str, str], str] = {}
+        # Every line and direction the real-time answers have named at this
+        # stop, direction id -> label as offered in the Configure dialog.
+        # Kept across restarts, so a line that runs only at certain hours
+        # (a night line) can be chosen at any time once it has run.
+        self.seen_directions: dict[str, str] = {}
+        self._directions_store = directions_store(hass, entry.entry_id)
+
+    async def async_load_directions(self) -> None:
+        """Read the lines and directions seen before the restart."""
+        stored = await self._directions_store.async_load()
+        if isinstance(stored, dict):
+            self.seen_directions = {str(key): str(label) for key, label in stored.items()}
+
+    def remember_directions(self, choices: dict[str, str]) -> None:
+        """Note the lines and directions (id -> label) that are new."""
+        new = {key: label for key, label in choices.items() if key not in self.seen_directions}
+        if not new or len(self.seen_directions) >= SEEN_DIRECTIONS_MAX:
+            return
+        self.seen_directions.update(new)
+        self._directions_store.async_delay_save(lambda: dict(self.seen_directions), SEEN_DIRECTIONS_SAVE_DELAY)
 
     def _filter_directions(self, board: dict, wanted: set[str], limit: int) -> None:
         """Keep the departures of the wanted lines and directions, in place.
@@ -731,6 +801,7 @@ class SwissTransportCoordinator(DataUpdateCoordinator[dict]):
                     self.hass, token, data[CONF_STATION_ID], fetch_limit + OJP_EXTRA_RESULTS
                 )
                 _apply_ojp(result, ojp)
+                self.remember_directions(direction_choices(ojp))
             except OjpAuthError as err:
                 if not self._ojp_auth_failed:
                     _LOGGER.warning(

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.17.0 — 2026-11-23
+
+- **Night and rush-hour lines in the choice of lines and directions.** The **Configure** dialog listed only what leaves from the stop in the next 60 departures, so a night line or a rush-hour line could be ticked only while it ran, and was missing from a filtered board the rest of the time. The dialog now also looks ahead: at the next working-day morning and evening peak and at the next night to Saturday. That is three more requests each time the dialog is opened, none in normal operation.
+- **The board remembers what it has seen.** Each station board keeps every line and direction the real-time source has named at its stop, and the dialog offers those as well, which catches what the look ahead misses (a line that runs only on Sundays, a diversion). The list is kept across restarts and deleted with the station.
+
+Both reported and suggested by @benchjito ([#7](https://github.com/prusuino/ha_swiss_transport/issues/7)).
+
 ## 1.16.2 — 2026-11-22
 
 - **The last row of a board gets its real-time data too.** The real-time source sometimes lists a journey the timetable board does not, so the same number of results ended a row earlier than the board, and the last departure had no second-accurate delay and no direction. Five more results are now asked for. The number of requests is unchanged.
@@ -11,7 +18,7 @@
 
 ## 1.16.0 — 2026-11-22
 
-- **A board for one direction only.** At a tram or bus stop the two directions leave from the two sides of the street; a station board can now be limited to the lines and directions you take. With a real-time token the **Configure** dialog of a station lists what leaves from the stop (`6 → Bahnhofplatz/HB`, `6 → Zoo`), you tick yours, and the board, the sensor and the cards show only those. The direction comes from the real-time source for every journey, so a tram that turns short at another destination stays on the board. At large stops the entry also names the Haltekante the direction leaves from. Needs a token; without one the board shows the whole stop as before. Suggested by @benkoechlin ([#7](https://github.com/prusuino/ha_swiss_transport/issues/7)).
+- **A board for one direction only.** At a tram or bus stop the two directions leave from the two sides of the street; a station board can now be limited to the lines and directions you take. With a real-time token the **Configure** dialog of a station lists what leaves from the stop (`6 → Bahnhofplatz/HB`, `6 → Zoo`), you tick yours, and the board, the sensor and the cards show only those. The direction comes from the real-time source for every journey, so a tram that turns short at another destination stays on the board. At large stops the entry also names the Haltekante the direction leaves from. Needs a token; without one the board shows the whole stop as before. Suggested by @benchjito ([#7](https://github.com/prusuino/ha_swiss_transport/issues/7)).
 - **New attributes.** With a token, each departure carries `direction` (`H` outward, `R` return) and `direction_id` (`6|H`); the board sensor has `direction_filter`, the list the board is limited to (empty for the whole stop).
 
 ## 1.15.1 — 2026-11-22
