@@ -233,6 +233,8 @@ On Home Assistant 2026.10 or newer the integration adds two entries to the autom
 
 Both target the integration's own sensors (pick an entity, the stop's device or an area); the usual *for* duration and behaviour options apply.
 
+**After an outage.** Home Assistant ignores a change that comes out of "unavailable", which is what an entity shows while the timetable cannot be reached. These triggers compare with the state before the outage instead: what began in the meantime still fires, and what was already there does not fire a second time.
+
 ```yaml
 triggers:
   - trigger: swiss_transport.departure_delayed
