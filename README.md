@@ -9,6 +9,7 @@
 [![Tests](https://github.com/prusuino/ha_swiss_transport/actions/workflows/tests.yml/badge.svg)](https://github.com/prusuino/ha_swiss_transport/actions/workflows/tests.yml)
 [![Home Assistant](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fprusuino%2Fha_swiss_transport%2Fmain%2Fhacs.json&query=%24.homeassistant&label=Home%20Assistant&suffix=%2B&color=41BDF5)](https://www.home-assistant.io/)
 [![Quality scale](https://img.shields.io/badge/Quality%20Scale-Silver-c0c0c0.svg)](https://developers.home-assistant.io/docs/core/integration-quality-scale/)
+[![Downloads](https://img.shields.io/github/downloads/prusuino/ha_swiss_transport/total?label=Downloads&color=brightgreen)](https://github.com/prusuino/ha_swiss_transport/releases)
 <a href="https://www.buymeacoffee.com/prusuino"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="20"></a>
 
 A Home Assistant custom integration for Swiss public transport, sourced from the free public **transport.opendata.ch** timetable API (no account required; it answers from the national timetable and real-time feed of opentransportdata.swiss). Two things it does:
