@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.18.0 — unreleased
+## 1.18.0 — 2026-11-28
 
 - **A saved route shows a platform change.** The connection search names the platform a train really leaves from, but the route sensor and the connection card showed the one of the timetable. The departure platform, the arrival platform and the platforms at a transfer are now the real ones; a changed departure platform is highlighted in the card as on the departure board, and the sensor carries `platform_changed` and `dep_platform_planned`.
 - **A saved route shows a cancelled train, with a departure board of its start station.** The connection search does not say that a train is cancelled, the departure board does. When a board of the station a route starts at is set up, each connection whose first train is on that board carries `cancelled`, and the card strikes it through and names it. The board is read anyway, so this costs no request, and a cancellation shows with the next refresh of the board.
