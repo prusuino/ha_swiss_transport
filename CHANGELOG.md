@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.18.1 — unreleased
+## 1.18.1 — 2026-11-28
 
 - **Fixed: a departure board for one direction sometimes showed the other direction too.** When both directions of a line leave in the same minute, which is common in the evening, and one tram's destination reads differently in the timetable and in the real-time source (a journey that turns short), both rows could be given the same real-time departure and with it the same direction. Each real-time departure now goes to one row only, and only to a row of its own line; a row that cannot be told apart gets no direction rather than a guessed one. Delay, cancellation and platform of such rows are no longer taken from the wrong tram either. Thanks to @benchjito for the report and the analysis (#8).
 
