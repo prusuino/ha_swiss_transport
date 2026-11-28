@@ -504,3 +504,60 @@ async def test_realtime_times_to_the_second_still_match(hass: HomeAssistant, api
     (row,) = hass.states.get(BOARD_ENTITY).attributes["departures"]
     assert row["delay"] == 0
 
+
+
+async def test_both_directions_in_the_same_minute(hass: HomeAssistant, api: FakeApi) -> None:
+    """Issue 8: in the evening both directions leave in the same minute, and
+    one tram turns short at a destination the real-time source names
+    differently. Every real-time departure goes to one row only, so the
+    filter does not keep the wrong direction."""
+    api.board = board(
+        [
+            departure(3, "T", "11", "Zürich, Depot Hard", platform=None),
+            departure(3, "T", "11", "Zürich, Rehalp", platform=None),
+            departure(3, "B", "33", "Zürich, Triemli", platform=None),
+            departure(18, "T", "11", "Zürich, Auzelg", platform=None),
+            departure(18, "T", "11", "Zürich, Rehalp", platform=None),
+        ]
+    )
+    api.ojp = ojp_xml(
+        [
+            ojp_event(3, "Auzelg", line="11", direction="H"),
+            ojp_event(3, "Rehalp", line="11", direction="R"),
+            ojp_event(3, "Triemli", line="33", direction="H"),
+            ojp_event(18, "Rehalp", line="11", direction="R"),
+            ojp_event(18, "Auzelg", line="11", direction="H"),
+        ]
+    )
+    entry = add_board(hass, options={CONF_OJP_TOKEN: "made-up-token", "directions": ["11|H"], CONF_LIMIT: 8})
+    await setup(hass, entry)
+    rows = hass.states.get(BOARD_ENTITY).attributes["departures"]
+    assert [(row["to"], row["direction_id"]) for row in rows] == [
+        ("Zürich, Depot Hard", "11|H"),
+        ("Zürich, Auzelg", "11|H"),
+    ]
+
+
+async def test_same_minute_that_cannot_be_told_apart(hass: HomeAssistant, api: FakeApi) -> None:
+    """Two trams of a line in one minute, neither destination reads the
+    same in the real-time answer: no direction rather than a guessed one,
+    and a real-time departure of another line is never taken."""
+    api.board = board(
+        [
+            departure(3, "T", "11", "Zürich, Depot Hard", platform=None, delay=None),
+            departure(3, "T", "11", "Zürich, Kalkbreite", platform=None, delay=None),
+            departure(5, "T", "11", "Zürich, Rehalp", platform=None, delay=None),
+        ]
+    )
+    api.ojp = ojp_xml(
+        [
+            ojp_event(3, "Auzelg", line="11", direction="H"),
+            ojp_event(3, "Rehalp", line="11", direction="R"),
+            ojp_event(5, "Triemli", estimated=9, line="33", direction="H"),
+            ojp_event(5, "Bucheggplatz", estimated=9, line="33", direction="R"),
+        ]
+    )
+    await setup(hass, add_board(hass, options={CONF_OJP_TOKEN: "made-up-token"}))
+    rows = hass.states.get(BOARD_ENTITY).attributes["departures"]
+    assert all("direction_id" not in row for row in rows)
+    assert rows[2].get("delay") in (None, 0)

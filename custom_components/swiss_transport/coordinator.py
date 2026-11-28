@@ -347,6 +347,7 @@ def _parse_ojp_stationboard(xml_text: str) -> dict:
             {
                 "destination": (_txt(r, ".//o:DestinationText/o:Text") or "").strip(),
                 "planned_ts": planned,
+                "line": (_txt(r, ".//o:Service/o:PublishedServiceName/o:Text") or "").strip(),
                 "direction_id": _direction_id(
                     _txt(r, ".//o:Service/o:PublishedServiceName/o:Text"), _txt(r, ".//o:Service/s:DirectionRef")
                 ),
@@ -495,25 +496,70 @@ async def async_validate_ojp_token(hass: HomeAssistant, token: str, station_id: 
     await _async_ojp_post(hass, token, station_id, 1)
 
 
+def _same_line(dep: dict, event: dict) -> bool:
+    """Whether a board row and a real-time departure are of the same line.
+    The board names it "6" or "S9", the real-time source "6", "S9" or
+    "S 9". A departure whose line the real-time source does not name
+    cannot be ruled out, so it fits every row."""
+    line = (event.get("line") or "").replace(" ", "").lower()
+    names = {dep.get("line"), dep.get("number"), f"{dep.get('category') or ''}{dep.get('number') or ''}"}
+    return not line or line in {(name or "").replace(" ", "").lower() for name in names}
+
+
+def _same_destination(dep: dict, event: dict) -> bool:
+    """Whether both name the same destination: "Zürich, Zoo" is "Zoo"."""
+    to = (dep.get("to") or "").strip().lower()
+    destination = (event.get("destination") or "").strip().lower()
+    if not to or not destination:
+        return False
+    return to == destination or to.rpartition(",")[2].strip() == destination.rpartition(",")[2].strip()
+
+
+def _match_minute(rows: list[dict], events: list[dict]) -> list[dict | None]:
+    """Which real-time departure belongs to which board row of one minute:
+    one per row, None where it cannot be told.
+
+    A real-time departure goes to one row only. Line and destination
+    decide; a row whose destination reads differently in the two sources (a
+    journey that turns short) gets the one departure of its line that is
+    left, and none when two are left: no direction is better than the
+    wrong one."""
+    if len(rows) == 1 and len(events) == 1:
+        # nothing to mix up; the two sources may name the line differently
+        return [events[0]]
+    found: list[dict | None] = [None] * len(rows)
+    free = list(events)
+    for index, dep in enumerate(rows):
+        for event in free:
+            if _same_line(dep, event) and _same_destination(dep, event):
+                found[index] = event
+                free.remove(event)
+                break
+    for index, dep in enumerate(rows):
+        if found[index] is not None:
+            continue
+        candidates = [event for event in free if _same_line(dep, event)]
+        rivals = [
+            other for at, other in enumerate(rows)
+            if at != index and found[at] is None and any(_same_line(other, event) for event in candidates)
+        ]
+        if len(candidates) == 1 and not rivals:
+            found[index] = candidates[0]
+            free.remove(candidates[0])
+    return found
+
+
 def _apply_ojp(board: dict, ojp: dict) -> None:
     """Overlay OJP real-time facts onto the opendata.ch board in place."""
     events = ojp.get("events") or {}
+    minutes: dict[int, list[dict]] = {}
     for dep in board.get("departures", []):
-        matches = events.get(_minute(dep["departure_ts"]))
-        if not matches:
-            continue
-        # Disambiguate several departures at the same minute by destination.
-        match = None
-        if len(matches) == 1:
-            match = matches[0]
-        else:
-            to = (dep.get("to") or "").strip().lower()
-            for m in matches:
-                if m["destination"].lower() == to:
-                    match = m
-                    break
-            match = match or matches[0]
-
+        minutes.setdefault(_minute(dep["departure_ts"]), []).append(dep)
+    pairs: list[tuple[dict, dict]] = []
+    for minute, rows in minutes.items():
+        if matches := events.get(minute):
+            pairs += [(dep, match) for dep, match in zip(rows, _match_minute(rows, matches)) if match]
+    for dep, match in pairs:
         if match.get("direction_id"):
             dep["direction_id"] = match["direction_id"]
             dep["direction"] = match["direction_id"].rpartition("|")[2]
