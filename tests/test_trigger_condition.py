@@ -91,8 +91,10 @@ def _foreign_board(hass: HomeAssistant) -> None:
     assert filter_by_domain_specs(hass, trigger.BOARD_DOMAIN_SPECS, {FOREIGN_ENTITY}) == {FOREIGN_ENTITY}
 
 
-async def test_both_triggers_and_both_conditions_are_offered(hass: HomeAssistant) -> None:
-    assert set(await trigger.async_get_triggers(hass)) == {"departure_delayed", "disruption_reported"}
+async def test_all_triggers_and_both_conditions_are_offered(hass: HomeAssistant) -> None:
+    assert set(await trigger.async_get_triggers(hass)) == {
+        "departure_delayed", "departure_cancelled", "platform_changed", "disruption_reported"
+    }
     assert set(await condition.async_get_conditions(hass)) == {"is_departure_delayed", "has_disruption"}
 
 
@@ -261,8 +263,8 @@ async def test_disruption_condition_ignores_entities_of_other_integrations(hass:
 # ------------------------------------------------------ older Home Assistant
 
 
-@pytest.mark.parametrize(("module", "offered"), [(trigger, "TRIGGERS"), (condition, "CONDITIONS")])
-def test_an_older_home_assistant_is_offered_nothing(module, offered: str) -> None:
+@pytest.mark.parametrize(("module", "offered", "known"), [(trigger, "TRIGGERS", 4), (condition, "CONDITIONS", 2)])
+def test_an_older_home_assistant_is_offered_nothing(module, offered: str, known: int) -> None:
     count = len(getattr(module, offered))
     try:
         with patch.dict(sys.modules, {"homeassistant.helpers.automation": None}):
@@ -270,4 +272,4 @@ def test_an_older_home_assistant_is_offered_nothing(module, offered: str) -> Non
             assert getattr(module, offered) == {}
     finally:
         importlib.reload(module)
-    assert len(getattr(module, offered)) == count == 2
+    assert len(getattr(module, offered)) == count == known

@@ -370,6 +370,14 @@ function durationToMinutes(value) {
   }
 }
 
+/* The platform of a departure or an arrival, and whether the forecast
+   names another one than the timetable (platform change). */
+function effectivePlatform(stop) {
+  const planned = (stop || {}).platform;
+  const forecast = ((stop || {}).prognosis || {}).platform;
+  return forecast && forecast !== planned ? [forecast, true] : [planned, false];
+}
+
 /* Mirrors the coordinator's _parse_connection (incl. legs/changes). */
 function parseConnectionEntry(con, labelMode) {
   const frm = con.from || {};
@@ -384,33 +392,43 @@ function parseConnectionEntry(con, labelMode) {
     const line = lineLabel(cat, num, labelMode);
     const sd = sec.departure || {};
     const sa = sec.arrival || {};
-    legs.push({
+    const [fromPlatform, fromChanged] = effectivePlatform(sd);
+    const [toPlatform, toChanged] = effectivePlatform(sa);
+    const leg = {
       line,
       category: cat,
       number: num,
       operator: j.operator,
       from_name: (sd.station || {}).name,
-      from_platform: sd.platform,
+      from_platform: fromPlatform,
       to_name: (sa.station || {}).name,
-      to_platform: sa.platform,
-    });
+      to_platform: toPlatform,
+    };
+    if (fromChanged) leg.from_platform_changed = true;
+    if (toChanged) leg.to_platform_changed = true;
+    legs.push(leg);
   }
   const changes = [];
   for (let i = 0; i < legs.length - 1; i++) {
-    changes.push({
+    const change = {
       station: legs[i].to_name,
       arr_platform: legs[i].to_platform,
       dep_platform: legs[i + 1].from_platform,
-    });
+    };
+    if (legs[i + 1].from_platform_changed) change.dep_platform_changed = true;
+    changes.push(change);
   }
+  const [depPlatform, platformChanged] = effectivePlatform(frm);
   return {
     departure: frm.departure,
     departure_ts: parseInt(frm.departureTimestamp, 10),
-    dep_platform: frm.platform,
+    dep_platform: depPlatform,
+    dep_platform_planned: platformChanged ? frm.platform : null,
+    platform_changed: platformChanged,
     delay: typeof frm.delay === "number" ? frm.delay : null,
     arrival: to.arrival,
     arrival_ts: to.arrivalTimestamp ? parseInt(to.arrivalTimestamp, 10) : null,
-    arr_platform: to.platform,
+    arr_platform: effectivePlatform(to)[0],
     duration_min: durationToMinutes(con.duration),
     transfers: con.transfers,
     products: con.products || [],
@@ -1227,8 +1245,11 @@ class SwissTransportConnectionCard extends HTMLElement {
         const arrStr = c.arrival ? String(c.arrival).substr(11, 5) : "";
         const depMs = connDepartureMs(c) || 0;
         const minsLeft = Math.round((depMs - nowMs) / 60000);
-        const countdown = minsLeft <= 0 ? (NOW_WORD[lang] || NOW_WORD.en) : `${minsLeft}′`;
-        const delayStr = delay && delay > 0 ? ` <span class="delay">+${delay}</span>` : "";
+        // A cancelled first train (known from the departure board of the
+        // start station) takes the place of the countdown.
+        const cancelled = !!c.cancelled;
+        const countdown = cancelled ? "" : minsLeft <= 0 ? (NOW_WORD[lang] || NOW_WORD.en) : `${minsLeft}′`;
+        const delayStr = !cancelled && delay && delay > 0 ? ` <span class="delay">+${delay}</span>` : "";
         const badges = (c.products || [])
           .map((p) => {
             const cls = connProductClass(p);
@@ -1290,7 +1311,11 @@ class SwissTransportConnectionCard extends HTMLElement {
                   const st = this._escape(ch.station || "");
                   const pfs =
                     ch.arr_platform || ch.dep_platform
-                      ? ` (${pf} ${this._escape(ch.arr_platform || "?")} → ${this._escape(ch.dep_platform || "?")})`
+                      ? ` (${pf} ${this._escape(ch.arr_platform || "?")} → ${
+                          ch.dep_platform_changed
+                            ? `<span class="chg">${this._escape(ch.dep_platform || "?")}</span>`
+                            : this._escape(ch.dep_platform || "?")
+                        })`
                       : "";
                   return st + pfs;
                 })
@@ -1300,9 +1325,11 @@ class SwissTransportConnectionCard extends HTMLElement {
         const grpHtml = grp ? `<div class="grp">${(MODE_WORD[grp.mode] || {})[lang] || grp.mode}</div>` : "";
         return `
           ${grpHtml}
-          <div class="cell dep">${this._escape(depStr)}${delayStr}</div>
-          ${anyDepPf ? `<div class="cell platform">${this._escape(c.dep_platform || "")}</div>` : ""}
-          <div class="cell cd">${this._escape(countdown)}</div>
+          <div class="cell dep${cancelled ? " cancelled" : ""}">${this._escape(depStr)}${delayStr}</div>
+          ${anyDepPf ? `<div class="cell platform${c.platform_changed ? " chg" : ""}">${this._escape(c.dep_platform || "")}</div>` : ""}
+          <div class="cell cd">${
+            cancelled ? `<span class="cxl">${CANCELLED_WORD[lang] || CANCELLED_WORD.en}</span>` : this._escape(countdown)
+          }</div>
           <div class="cell lines">${badges}</div>
           ${showArr ? `<div class="cell arr">${this._escape(arrStr)}</div>` : ""}
           ${anyArrPf ? `<div class="cell platform">${this._escape(c.arr_platform || "")}</div>` : ""}
@@ -1343,6 +1370,9 @@ class SwissTransportConnectionCard extends HTMLElement {
         .lines { min-width: 0; flex-wrap: wrap; }
         .delay { color: var(--error-color, #c62828); font-weight: 600; font-size: 0.85em; }
         .platform { font-weight: 700; }
+        .platform.chg, .changes .chg { color: var(--warning-color, #f9a825); font-weight: 700; }
+        .dep.cancelled { text-decoration: line-through; color: var(--secondary-text-color); font-weight: 500; }
+        .cd .cxl { color: var(--error-color, #c62828); font-weight: 700; }
         .changes {
           grid-column: 1 / -1; display: flex; gap: 6px; align-items: center;
           font-size: 0.8em; color: var(--secondary-text-color);

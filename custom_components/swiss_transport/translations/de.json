@@ -184,6 +184,30 @@
         }
       }
     },
+    "departure_cancelled": {
+      "name": "Nächste Abfahrt fällt aus",
+      "description": "Löst aus, wenn die nächste Abfahrt einer Haltestelle ausfällt. Die nächste Verbindung einer gespeicherten Route ist abgedeckt, wenn eine Abfahrtstafel ihres Startbahnhofs eingerichtet ist.",
+      "fields": {
+        "behavior": {
+          "name": "Auslösen wenn"
+        },
+        "for": {
+          "name": "Mindestens für"
+        }
+      }
+    },
+    "platform_changed": {
+      "name": "Gleis geändert",
+      "description": "Löst aus, wenn die nächste Abfahrt einer Haltestelle (oder die nächste Verbindung einer gespeicherten Route) von einem anderen Gleis fährt als im Fahrplan.",
+      "fields": {
+        "behavior": {
+          "name": "Auslösen wenn"
+        },
+        "for": {
+          "name": "Mindestens für"
+        }
+      }
+    },
     "disruption_reported": {
       "name": "Störung gemeldet",
       "description": "Löst aus, wenn für eine Haltestelle eine Störungsmeldung erscheint (nur mit Echtzeitquelle).",

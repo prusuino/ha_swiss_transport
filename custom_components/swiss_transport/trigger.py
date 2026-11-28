@@ -1,8 +1,9 @@
 """Triggers for Swiss Transport.
 
-"Next departure delayed" and "Disruption reported" for the automation
-editor's trigger list. Both watch a departure-board or saved-connection
-entity: the delay of the next departure (or connection) and the disruption
+"Next departure delayed", "Next departure cancelled", "Platform changed" and
+"Disruption reported" for the automation editor's trigger list. All watch a
+departure-board or saved-connection entity: the delay, the cancellation and
+the platform change of the next departure (or connection) and the disruption
 messages of the stop (real-time source) are attributes of those entities.
 A target that expands to other entities (a device, an area) is narrowed to
 the ones this integration created.
@@ -131,8 +132,43 @@ else:
         def _matches(self, state: State) -> bool:
             return bool(state.attributes.get("alerts"))
 
+    def _journey(state: State) -> tuple:
+        """What tells the next departure (or connection) from another one."""
+        item = _next_item(state) or {}
+        return (item.get("departure_ts"), item.get("line"), item.get("to"), tuple(item.get("products") or ()))
+
+    class _JourneyTrigger(_BoardTrigger):
+        """Fires for every journey it matches: also when the next departure
+        matches right after another one that did (two cancelled trains in a
+        row are two events, a delay that lasts is one)."""
+
+        _flag = ""
+
+        def _matches(self, state: State) -> bool:
+            item = _next_item(state)
+            return bool(item and item.get(self._flag))
+
+        def is_valid_transition(self, from_state: State, to_state: State) -> bool:
+            if from_state.state in _GAP:
+                return super().is_valid_transition(from_state, to_state)
+            return not self._matches(from_state) or _journey(from_state) != _journey(to_state)
+
+    class _DepartureCancelled(_JourneyTrigger):
+        """The next departure is cancelled. A saved connection knows this
+        only with a departure board of its start station."""
+
+        _flag = "cancelled"
+
+    class _PlatformChanged(_JourneyTrigger):
+        """The next departure (or connection) leaves from another platform
+        than the timetable says."""
+
+        _flag = "platform_changed"
+
     TRIGGERS: dict[str, type[Trigger]] = {
         "departure_delayed": _DepartureDelayed,
+        "departure_cancelled": _DepartureCancelled,
+        "platform_changed": _PlatformChanged,
         "disruption_reported": _DisruptionReported,
     }
 

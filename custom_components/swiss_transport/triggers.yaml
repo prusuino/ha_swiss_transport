@@ -30,6 +30,25 @@ departure_delayed:
           unit_of_measurement: min
   target: *board_target
 
+departure_cancelled:
+  fields: &plain_fields
+    behavior:
+      required: true
+      default: each
+      selector:
+        automation_behavior:
+          mode: trigger
+    for:
+      required: true
+      default: 00:00:00
+      selector:
+        duration:
+  target: *board_target
+
+platform_changed:
+  fields: *plain_fields
+  target: *board_target
+
 disruption_reported:
   fields:
     behavior:

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.18.0 — unreleased
+
+- **A saved route shows a platform change.** The connection search names the platform a train really leaves from, but the route sensor and the connection card showed the one of the timetable. The departure platform, the arrival platform and the platforms at a transfer are now the real ones; a changed departure platform is highlighted in the card as on the departure board, and the sensor carries `platform_changed` and `dep_platform_planned`.
+- **A saved route shows a cancelled train, with a departure board of its start station.** The connection search does not say that a train is cancelled, the departure board does. When a board of the station a route starts at is set up, each connection whose first train is on that board carries `cancelled`, and the card strikes it through and names it. The board is read anyway, so this costs no request, and a cancellation shows with the next refresh of the board.
+- **Two new triggers: Next departure cancelled and Platform changed.** Both fire once for every train, for a departure board and for a saved route.
+- **New blueprint: tell me when my train is late, cancelled or on another platform.** It watches the trains inside the time of day you leave, on the days you choose, and sends a notification only when something is wrong, and again when the train runs as planned.
+
 ## 1.17.1 — 2026-11-23
 
 - **Fixed: a delay or disruption that was there after an outage was not reported.** While the timetable cannot be read a board is unavailable, and Home Assistant ignores every change out of "unavailable". When the board came back with a delayed next departure or with a disruption message, *Departure delayed* and *Disruption reported* stayed silent. Both triggers now compare with the board before the outage: a delay or disruption that is new fires, one that was already there does not fire a second time.

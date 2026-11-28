@@ -184,6 +184,30 @@
         }
       }
     },
+    "departure_cancelled": {
+      "name": "Next departure cancelled",
+      "description": "Triggers when the next departure of a stop is cancelled. The next connection of a saved route is covered when a departure board of its start station is set up.",
+      "fields": {
+        "behavior": {
+          "name": "Trigger when"
+        },
+        "for": {
+          "name": "For at least"
+        }
+      }
+    },
+    "platform_changed": {
+      "name": "Platform changed",
+      "description": "Triggers when the next departure of a stop (or the next connection of a saved route) leaves from another platform than the timetable says.",
+      "fields": {
+        "behavior": {
+          "name": "Trigger when"
+        },
+        "for": {
+          "name": "For at least"
+        }
+      }
+    },
     "disruption_reported": {
       "name": "Disruption reported",
       "description": "Triggers when a disruption message appears for a stop (real-time source only).",

@@ -29,7 +29,7 @@ Both come with a bundled Lovelace card styled like a station departure board, pl
 - **Browse the timetable**: switch every board from live to any date and time, or to an arrivals board.
 - **Delays, cancellations and occupancy without an account**: a cancelled train stays on the board, struck through and marked. With a free opentransportdata.swiss token on top: delays to the second, platform changes and disruption messages.
 - **One side of the street**: at a tram or bus stop, limit a board to the lines and directions you actually take (with a real-time token).
-- **Built for the automation editor**: triggers and conditions for a delayed next departure and a reported disruption, and a blueprint that reminds you before the next departure — no templates needed.
+- **Built for the automation editor**: triggers for a delayed or cancelled next departure, a platform change and a reported disruption, conditions, and two blueprints: one reminds you before the next departure, one tells you when your train is late, cancelled or on another platform — no templates needed.
 - **Two actions for everything else**: `swiss_transport.get_departures` and `swiss_transport.get_connections` answer for any stop, configured or not — made for scripts and Assist.
 - **A dashboard without building one**: the bundled strategy lays out your boards and connections by itself.
 - **Polls sparingly**: boards about every 90 seconds, connections every 5 minutes, to go easy on the free API.
@@ -49,7 +49,9 @@ When you add the integration you first choose a **mode** — a departure board o
 
 | Entity | Type | Description |
 |---|---|---|
-| `sensor.swiss_transport_<from>_<to>_<tag>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, delay, `departure_prognosis` — the forecast departure time when the source has one —, `duration_min`, `transfers`, the `products`/lines used, and `changes` — the transfer stations with arrival → onward platform), `connection_count`, `line_label`, from/to names and station ids. |
+| `sensor.swiss_transport_<from>_<to>_<tag>` | Sensor | State = the next connection's departure (timestamp). Attributes: `connections` (each with departure/arrival time and platform, `platform_changed` and `dep_platform_planned` when the train leaves from another platform than planned, `cancelled` when a departure board of the start station is set up (see below), delay, `departure_prognosis` — the forecast departure time when the source has one —, `duration_min`, `transfers`, the `products`/lines used, and `changes` — the transfer stations with arrival → onward platform), `connection_count`, `line_label`, from/to names and station ids. |
+
+**Cancelled trains on a route.** The connection search does not say that a train is cancelled, the departure board does. When you also have a departure board of the station a route starts at, each connection whose first train is on that board carries `cancelled`, and the connection card strikes it through. This costs no extra request. Without such a board, or for a train the board does not reach yet, a connection says nothing about cancellation.
 
 The lists (`departures`, `alerts`, `connections`) are on the live state only: the recorder leaves them out, because they change with nearly every refresh and would fill the database. The state and the other attributes are recorded as usual.
 
@@ -223,16 +225,33 @@ The repository ships a blueprint that sends a notification to your phone a few m
 
 It reminds you of every departure that comes into the window, so at a busy stop set the active hours to the time you actually leave. An action field takes your own steps; the text is available there as `{{ message }}`.
 
+### Blueprint: tell me when my train is late, cancelled or on another platform
+
+A second blueprint watches the trains you take and stays quiet as long as they run as planned. Pick a saved route (or a stop), the time of day your train leaves (for example 07:05 to 07:20), the days and your phone. It then tells you about a delay, a cancellation or a platform change of those trains, and when a train runs as planned again:
+
+[![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fprusuino%2Fha_swiss_transport%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fcommuter_alert.yaml)
+
+```
+07:12 IC 6: +8 min
+07:12 IC 6: platform 5 instead of 4
+07:12 IC 6: cancelled
+07:12 IC 6: as planned again
+```
+
+It looks at every train of the list inside your time of day, not only at the next one, from an hour before the departure (adjustable). A growing delay is reported again at every further five minutes. For a cancellation on a route, set up a departure board of its start station as well (see *Cancelled trains on a route*).
+
 ### Triggers in the automation editor
 
-On Home Assistant 2026.10 or newer the integration adds two entries to the automation editor's trigger list:
+On Home Assistant 2026.10 or newer the integration adds four entries to the automation editor's trigger list:
 
 | Trigger | Fires when |
 |---|---|
 | **Next departure delayed** | the next departure of a stop (or the next connection of a route) reaches a **minimum delay** in minutes; it fires once when the delay is reached, not again while it stays |
+| **Next departure cancelled** | the next departure of a stop is cancelled; for the next connection of a route with a departure board of its start station; it fires once for every cancelled train |
+| **Platform changed** | the next departure of a stop (or the next connection of a route) leaves from another platform than the timetable says; once for every train |
 | **Disruption reported** | a disruption message appears for a stop (real-time source only) |
 
-Both target the integration's own sensors (pick an entity, the stop's device or an area); the usual *for* duration and behaviour options apply.
+All target the integration's own sensors (pick an entity, the stop's device or an area); the usual *for* duration and behaviour options apply.
 
 **After an outage.** Home Assistant ignores a change that comes out of "unavailable", which is what an entity shows while the timetable cannot be reached. These triggers compare with the state before the outage instead: what began in the meantime still fires, and what was already there does not fire a second time.
 

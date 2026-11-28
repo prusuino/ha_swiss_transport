@@ -8,10 +8,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -546,6 +547,16 @@ def _duration_to_minutes(value) -> int | None:
         return None
 
 
+def _platform(stop: dict) -> tuple[str | None, bool]:
+    """The platform of a departure or an arrival, and whether it differs from
+    the timetable: the forecast names another one on a platform change."""
+    planned = stop.get("platform")
+    forecast = (stop.get("prognosis") or {}).get("platform")
+    if forecast and forecast != planned:
+        return forecast, True
+    return planned, False
+
+
 def _parse_connection(con: dict, line_label: str = DEFAULT_LINE_LABEL) -> dict | None:
     frm = con.get("from") or {}
     to = con.get("to") or {}
@@ -565,39 +576,51 @@ def _parse_connection(con: dict, line_label: str = DEFAULT_LINE_LABEL) -> dict |
         line = _line_label(cat, num, line_label)
         sec_dep = sec.get("departure") or {}
         sec_arr = sec.get("arrival") or {}
-        legs.append(
-            {
-                "line": line,
-                "category": cat,
-                "number": num,
-                "operator": journey.get("operator"),
-                "to": journey.get("to"),
-                "from_name": (sec_dep.get("station") or {}).get("name"),
-                "from_platform": sec_dep.get("platform"),
-                "to_name": (sec_arr.get("station") or {}).get("name"),
-                "to_platform": sec_arr.get("platform"),
-            }
-        )
+        from_platform, from_changed = _platform(sec_dep)
+        to_platform, to_changed = _platform(sec_arr)
+        leg = {
+            "line": line,
+            "category": cat,
+            "number": num,
+            "operator": journey.get("operator"),
+            "to": journey.get("to"),
+            "from_name": (sec_dep.get("station") or {}).get("name"),
+            "from_platform": from_platform,
+            "to_name": (sec_arr.get("station") or {}).get("name"),
+            "to_platform": to_platform,
+        }
+        if from_changed:
+            leg["from_platform_changed"] = True
+        if to_changed:
+            leg["to_platform_changed"] = True
+        legs.append(leg)
     # Transfer points: where one leg ends and the next begins — the station to
     # change at, with the arrival and onward-departure platforms.
-    changes = [
-        {
+    changes = []
+    for i in range(len(legs) - 1):
+        change = {
             "station": legs[i]["to_name"],
             "arr_platform": legs[i]["to_platform"],
             "dep_platform": legs[i + 1]["from_platform"],
         }
-        for i in range(len(legs) - 1)
-    ]
+        if legs[i + 1].get("from_platform_changed"):
+            change["dep_platform_changed"] = True
+        changes.append(change)
+    dep_platform, platform_changed = _platform(frm)
     return {
         "departure": frm.get("departure"),
         "departure_ts": int(dep_ts),
-        "dep_platform": frm.get("platform"),
+        # The platform the train really leaves from; on a platform change the
+        # one of the timetable is kept beside it.
+        "dep_platform": dep_platform,
+        "dep_platform_planned": frm.get("platform") if platform_changed else None,
+        "platform_changed": platform_changed,
         "delay": int(dep_delay) if isinstance(dep_delay, (int, float)) else None,
         # Forecast departure time; null when the source has none.
         "departure_prognosis": (frm.get("prognosis") or {}).get("departure"),
         "arrival": to.get("arrival"),
         "arrival_ts": int(to["arrivalTimestamp"]) if to.get("arrivalTimestamp") else None,
-        "arr_platform": to.get("platform"),
+        "arr_platform": _platform(to)[0],
         "duration_min": _duration_to_minutes(con.get("duration")),
         "transfers": con.get("transfers"),
         "products": con.get("products") or [],
@@ -638,6 +661,35 @@ async def async_fetch_connections(
         "to_name": to.get("name"),
         "connections": connections,
     }
+
+
+def _with_cancellations(route: dict, board: dict | None) -> dict:
+    """Mark the connections whose first train the departure board of the
+    same station lists: `cancelled` says whether that train runs.
+
+    The connection search does not say that a train is cancelled, the
+    departure board does. A connection whose first train is not on the board
+    (no board for the station, the board does not reach that far, a filter
+    hides the line) carries no `cancelled`. The train is recognised by
+    category, number and the minute of its scheduled departure. Returns the
+    same dict when nothing changes, otherwise a new one with new connection
+    dicts: the old ones belong to the state already written."""
+    rows = {
+        (dep.get("category"), dep.get("number"), dep["departure_ts"] // 60): dep.get("cancelled") is True
+        for dep in (board or {}).get("departures") or []
+    }
+    changed = False
+    marked = []
+    for con in route.get("connections") or []:
+        leg = (con.get("legs") or [None])[0]
+        known = rows.get((leg.get("category"), leg.get("number"), con["departure_ts"] // 60)) if leg else None
+        if con.get("cancelled") != known:
+            con = {key: value for key, value in con.items() if key != "cancelled"}
+            if known is not None:
+                con["cancelled"] = known
+            changed = True
+        marked.append(con)
+    return {**route, "connections": marked} if changed else route
 
 
 _REAUTH_ASKED = f"{DOMAIN}_token_reauth_asked"
@@ -851,6 +903,53 @@ class SwissConnectionCoordinator(DataUpdateCoordinator[dict]):
         )
         self._entry = entry
         self.issues = IssueReporter(hass, entry.entry_id)
+        # The departure board of the station the route starts at, when one is
+        # set up: it tells which trains are cancelled (see _with_cancellations).
+        self._board: SwissTransportCoordinator | None = None
+        self._unwatch: Callable[[], None] | None = None
+
+    def _find_board(self) -> SwissTransportCoordinator | None:
+        from .const import CONF_FROM_ID  # local import avoids a cycle at module load
+
+        from_id = str(self._entry.data.get(CONF_FROM_ID))
+        for other in self.hass.config_entries.async_entries(DOMAIN):
+            coordinator = getattr(other, "runtime_data", None)
+            if (
+                other.state is ConfigEntryState.LOADED
+                and isinstance(coordinator, SwissTransportCoordinator)
+                and str(other.data.get(CONF_STATION_ID)) == from_id
+            ):
+                return coordinator
+        return None
+
+    def _watch_board(self) -> SwissTransportCoordinator | None:
+        """Follow the board of the start station; it is refreshed more often
+        than the route, so a cancellation shows without waiting for the next
+        connection search. Costs no request: the board is read anyway."""
+        board = self._find_board()
+        if board is not self._board:
+            self.unwatch_board()
+            self._board = board
+            if board is not None:
+                self._unwatch = board.async_add_listener(self._board_updated)
+        return board
+
+    @callback
+    def unwatch_board(self) -> None:
+        if self._unwatch is not None:
+            self._unwatch()
+        self._unwatch = None
+        self._board = None
+
+    @callback
+    def _board_updated(self) -> None:
+        if not self.data or self._board is None:
+            return
+        marked = _with_cancellations(self.data, self._board.data)
+        if marked is not self.data:
+            # Not async_set_updated_data: that would put off the next search.
+            self.data = marked
+            self.async_update_listeners()
 
     async def _async_update_data(self) -> dict:
         from .const import (  # local import avoids a cycle at module load
@@ -876,4 +975,5 @@ class SwissConnectionCoordinator(DataUpdateCoordinator[dict]):
             raise UpdateFailed(f"transport.opendata.ch unreachable: {err}") from err
         self.issues.clear("unreachable")
         self.update_interval = timedelta(seconds=CONNECTION_UPDATE_INTERVAL_SECONDS)
-        return result
+        board = self._watch_board()
+        return _with_cancellations(result, board.data if board else None)

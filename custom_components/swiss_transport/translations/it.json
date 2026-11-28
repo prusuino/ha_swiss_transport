@@ -184,6 +184,30 @@
         }
       }
     },
+    "departure_cancelled": {
+      "name": "Prossima partenza soppressa",
+      "description": "Si attiva quando la prossima partenza di una fermata è soppressa. Il prossimo collegamento di un percorso salvato è coperto se è configurato un tabellone delle partenze della sua stazione di partenza.",
+      "fields": {
+        "behavior": {
+          "name": "Attiva quando"
+        },
+        "for": {
+          "name": "Per almeno"
+        }
+      }
+    },
+    "platform_changed": {
+      "name": "Binario cambiato",
+      "description": "Si attiva quando la prossima partenza di una fermata (o il prossimo collegamento di un percorso salvato) parte da un binario diverso da quello dell'orario.",
+      "fields": {
+        "behavior": {
+          "name": "Attiva quando"
+        },
+        "for": {
+          "name": "Per almeno"
+        }
+      }
+    },
     "disruption_reported": {
       "name": "Perturbazione segnalata",
       "description": "Si attiva quando per una fermata appare un messaggio di perturbazione (solo con fonte in tempo reale).",

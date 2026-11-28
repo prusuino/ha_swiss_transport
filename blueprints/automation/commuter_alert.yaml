@@ -1,0 +1,179 @@
+blueprint:
+  name: Swiss Transport – tell me when my train is late, cancelled or on another platform
+  description: >-
+    Watches the trains you take (the departures of a saved route or of a stop
+    within a time of day) and sends a notification to your phone only when
+    something is wrong: a delay, a cancellation or a platform change. When
+    the train runs as planned again, it says so.
+
+
+    A growing delay is reported again at every further five minutes. A
+    cancellation on a saved route needs a departure board of its start
+    station; without one the route reports delays and platform changes.
+
+
+    The text is available in the action field as `{{ message }}`.
+  domain: automation
+  source_url: https://github.com/prusuino/ha_swiss_transport/blob/main/blueprints/automation/commuter_alert.yaml
+  author: prusuino
+  homeassistant:
+    min_version: 2025.4.0
+  input:
+    board_sensor:
+      name: Route or stop
+      description: The sensor of a saved connection, or the departure-board sensor of a stop.
+      selector:
+        entity:
+          filter:
+            - integration: swiss_transport
+              domain: sensor
+              device_class: timestamp
+    train_from:
+      name: My train leaves from
+      description: The earliest scheduled departure you take, e.g. 07:05.
+      default: "06:00:00"
+      selector:
+        time:
+    train_until:
+      name: My train leaves until
+      description: The latest scheduled departure you take, e.g. 07:20.
+      default: "09:00:00"
+      selector:
+        time:
+    weekdays:
+      name: Days
+      default: [mon, tue, wed, thu, fri]
+      selector:
+        select:
+          multiple: true
+          options:
+            - { value: mon, label: Monday }
+            - { value: tue, label: Tuesday }
+            - { value: wed, label: Wednesday }
+            - { value: thu, label: Thursday }
+            - { value: fri, label: Friday }
+            - { value: sat, label: Saturday }
+            - { value: sun, label: Sunday }
+    lead_minutes:
+      name: Watch from
+      description: How long before the departure the train is watched.
+      default: 60
+      selector:
+        number:
+          min: 5
+          max: 180
+          step: 5
+          mode: slider
+          unit_of_measurement: min
+    minimum_delay:
+      name: Minimum delay
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          mode: box
+          unit_of_measurement: min
+    all_clear:
+      name: Tell me when it runs as planned again
+      default: true
+      selector:
+        boolean:
+    notify_device:
+      name: Phone
+      description: The phone (Home Assistant Companion app) that receives the notification.
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+    extra_actions:
+      name: Additional actions
+      description: Run after the notification. The notification text is available as `{{ message }}`.
+      default: []
+      selector:
+        action:
+
+mode: queued
+max: 5
+max_exceeded: silent
+
+triggers:
+  # Every refresh that changes the board or the route: the list of
+  # departures is an attribute, so this also fires while the state (the time
+  # of the next departure) stays the same.
+  - trigger: state
+    entity_id: !input board_sensor
+    not_to:
+      - unknown
+      - unavailable
+
+variables:
+  board_sensor: !input board_sensor
+  train_from: !input train_from
+  train_until: !input train_until
+  lead_minutes: !input lead_minutes
+  minimum_delay: !input minimum_delay
+  all_clear: !input all_clear
+  notify_device: !input notify_device
+  attrs: "{{ trigger.to_state.attributes if trigger.to_state is not none else {} }}"
+  station: "{{ attrs.station_name or (attrs.from_name ~ ' → ' ~ attrs.to_name if attrs.from_name is defined else board_sensor) }}"
+  # One line per train whose situation changed with this refresh. A train is
+  # told apart by its scheduled departure and its name; what it was like
+  # before is read from the state before the refresh.
+  message: >-
+    {%- macro items(state) -%}
+      {{- ((state.attributes.connections | default(none)) or (state.attributes.departures | default(none)) or []) | to_json if state is not none else '[]' -}}
+    {%- endmacro -%}
+    {%- macro label(item) -%}
+      {{- (item.products | join(', ')) if item.products is defined else (item.line ~ ' → ' ~ item.to) -}}
+    {%- endmacro -%}
+    {%- macro flags(item) -%}
+      {%- if item.cancelled | default(false) -%}cancelled
+      {%- elif item.platform_changed | default(false) -%}
+        platform {{ item.dep_platform if item.dep_platform is defined else item.platform }}
+        {%- if item.dep_platform_planned | default(none) %} instead of {{ item.dep_platform_planned }}{% endif -%}
+      {%- endif -%}
+    {%- endmacro -%}
+    {%- set new = items(trigger.to_state) | from_json -%}
+    {%- set old = items(trigger.from_state) | from_json -%}
+    {%- set least = minimum_delay | int -%}
+    {%- set ns = namespace(lines=[]) -%}
+    {%- for item in new -%}
+      {%- set scheduled = item.departure_ts | int(0) -%}
+      {%- set clock = scheduled | timestamp_custom('%H:%M:%S') -%}
+      {%- set ahead = (scheduled - now().timestamp()) / 60 -%}
+      {%- if train_from <= clock <= train_until and -1 <= ahead <= (lead_minutes | int) -%}
+        {%- set name = label(item) | trim -%}
+        {%- set before = old | selectattr('departure_ts', 'eq', item.departure_ts) | list -%}
+        {%- set was = namespace(found=none) -%}
+        {%- for other in before if label(other) | trim == name -%}{%- set was.found = other -%}{%- endfor -%}
+        {%- set flag = flags(item) | trim -%}
+        {%- set flag_was = (flags(was.found) | trim) if was.found is not none else '' -%}
+        {%- set delay = (item.delay or 0) | int -%}
+        {%- set delay_was = ((was.found.delay or 0) | int) if was.found is not none else 0 -%}
+        {%- set late = delay >= least and not (item.cancelled | default(false)) -%}
+        {%- set late_was = delay_was >= least -%}
+        {%- set head = clock[:5] ~ ' ' ~ name ~ ': ' -%}
+        {%- if (flag and flag != flag_was) or (late and (not late_was or delay // 5 > delay_was // 5)) -%}
+          {%- set parts = ([flag] if flag else []) + (['+' ~ delay ~ ' min'] if late else []) -%}
+          {%- set ns.lines = ns.lines + [head ~ parts | join(', ')] -%}
+        {%- elif all_clear and was.found is not none and not flag and not late and (flag_was or late_was) -%}
+          {%- set ns.lines = ns.lines + [head ~ 'as planned again'] -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {{ ns.lines | join('\n') }}
+
+conditions:
+  - condition: time
+    weekday: !input weekdays
+  - condition: template
+    value_template: "{{ message | trim | length > 0 }}"
+
+actions:
+  - action: "notify.mobile_app_{{ device_attr(notify_device, 'name') | slugify }}"
+    data:
+      title: "{{ station }}"
+      message: "{{ message | trim }}"
+  - sequence: !input extra_actions

@@ -3,6 +3,12 @@
     "departure_delayed": {
       "trigger": "mdi:clock-alert-outline"
     },
+    "departure_cancelled": {
+      "trigger": "mdi:cancel"
+    },
+    "platform_changed": {
+      "trigger": "mdi:swap-horizontal"
+    },
     "disruption_reported": {
       "trigger": "mdi:alert-octagon-outline"
     }

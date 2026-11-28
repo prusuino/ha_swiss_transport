@@ -234,4 +234,15 @@ for (const [labelMode, train] of [[undefined, "S"], ["category", "S"], ["full", 
   assert.deepEqual(lines, [train, train, "21"], `timetable legs with line_label ${labelMode}`);
 }
 
+// A platform change and a cancelled first train are marked; a normal row is not.
+html = render({}, [conn(3)]);
+assert.ok(!html.includes("platform chg") && !html.includes('class="cxl"'), "a normal row carries no marks");
+html = render({}, [{ ...conn(3), dep_platform: "9", dep_platform_planned: "1", platform_changed: true }]);
+assert.ok(html.includes('<div class="cell platform chg">9</div>'), "the changed platform is highlighted");
+html = render({}, [{ ...conn(3), cancelled: true, delay: 4 }]);
+assert.ok(html.includes('class="cell dep cancelled"') && html.includes('<span class="cxl">Ausfall</span>'), "a cancelled train is struck through and named");
+assert.ok(!html.includes('class="delay"'), "a cancelled train shows no delay");
+html = render({}, [{ ...conn(3), changes: [{ station: "Thun", arr_platform: "2", dep_platform: "5", dep_platform_changed: true }] }]);
+assert.ok(html.includes('<span class="chg">5</span>'), "a changed onward platform is highlighted");
+
 console.log("connection-card options: ok");

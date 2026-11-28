@@ -184,6 +184,30 @@
         }
       }
     },
+    "departure_cancelled": {
+      "name": "Prochain départ supprimé",
+      "description": "Se déclenche lorsque le prochain départ d'un arrêt est supprimé. La prochaine correspondance d'un itinéraire enregistré est couverte si un tableau des départs de sa gare de départ est configuré.",
+      "fields": {
+        "behavior": {
+          "name": "Déclencher quand"
+        },
+        "for": {
+          "name": "Pendant au moins"
+        }
+      }
+    },
+    "platform_changed": {
+      "name": "Voie modifiée",
+      "description": "Se déclenche lorsque le prochain départ d'un arrêt (ou la prochaine correspondance d'un itinéraire enregistré) part d'une autre voie que celle de l'horaire.",
+      "fields": {
+        "behavior": {
+          "name": "Déclencher quand"
+        },
+        "for": {
+          "name": "Pendant au moins"
+        }
+      }
+    },
     "disruption_reported": {
       "name": "Perturbation signalée",
       "description": "Se déclenche quand un message de perturbation apparaît pour un arrêt (source temps réel uniquement).",

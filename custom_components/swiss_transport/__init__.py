@@ -41,6 +41,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SwissTransportConfigEntr
 
     if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_CONNECTION:
         coordinator = SwissConnectionCoordinator(hass, entry)
+        entry.async_on_unload(coordinator.unwatch_board)
     else:
         coordinator = SwissTransportCoordinator(hass, entry)
         await coordinator.async_load_directions()
